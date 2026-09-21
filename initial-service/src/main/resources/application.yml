@@ -1,0 +1,73 @@
+spring:
+  application:
+    name: initial-service
+  datasource:
+    url: ${INITIAL_DB_URL:jdbc:oracle:thin:@//127.0.0.1:11521/FREEPDB1}
+    username: INITIAL_DB
+    password: ${INITIAL_DB_PASSWORD}
+    driver-class-name: oracle.jdbc.OracleDriver
+    hikari:
+      pool-name: InitialOraclePool
+      maximum-pool-size: 3
+      minimum-idle: 0
+      connection-timeout: 5000
+      validation-timeout: 3000
+      initialization-fail-timeout: -1
+      data-source-properties:
+        oracle.net.CONNECT_TIMEOUT: 5000
+        oracle.jdbc.ReadTimeout: 10000
+  sql:
+    init:
+      mode: never
+
+server:
+  address: ${INITIAL_BIND_ADDRESS:127.0.0.1}
+  port: ${INITIAL_PORT:8081}
+  servlet:
+    context-path: /initial-service
+  shutdown: graceful
+
+eureka:
+  client:
+    # This service only registers itself; it does not discover other services yet.
+    # Avoid fetching during shared-Tomcat startup before its connector is ready.
+    fetch-registry: false
+    register-with-eureka: true
+    should-enforce-registration-at-init: false
+    timeout:
+      connect-timeout: 5000
+      connect-request-timeout: 5000
+      socket-timeout: 5000
+    service-url:
+      # Include Eureka HTTP Basic credentials in this URL; see README.
+      defaultZone: ${EUREKA_DEFAULT_ZONE}
+    healthcheck:
+      enabled: true
+  instance:
+    # For external Tomcat, set INITIAL_ADVERTISED_PORT to its connector port.
+    hostname: ${INITIAL_HOSTNAME:localhost}
+    instance-id: ${spring.application.name}:${eureka.instance.hostname}:${INITIAL_ADVERTISED_PORT:${server.port}}
+    non-secure-port: ${INITIAL_ADVERTISED_PORT:${server.port}}
+    home-page-url-path: /initial-service/
+    status-page-url-path: /initial-service/actuator/info
+    health-check-url-path: /initial-service/actuator/health
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+      group:
+        liveness:
+          include: livenessState
+        readiness:
+          include: readinessState,db
+
+logging:
+  level:
+    root: INFO

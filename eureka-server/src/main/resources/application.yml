@@ -1,0 +1,44 @@
+spring:
+  application:
+    name: eureka-server
+  security:
+    user:
+      name: ${EUREKA_USERNAME:eureka}
+      password: ${EUREKA_PASSWORD}
+      roles: ADMIN
+  sql:
+    init:
+      mode: never
+
+server:
+  address: ${EUREKA_BIND_ADDRESS:127.0.0.1}
+  port: ${EUREKA_PORT:8761}
+  servlet:
+    context-path: /eureka-server
+  shutdown: graceful
+
+eureka:
+  instance:
+    hostname: ${EUREKA_HOSTNAME:localhost}
+  client:
+    register-with-eureka: false
+    fetch-registry: false
+    service-url:
+      defaultZone: http://${eureka.instance.hostname}:${server.port}/eureka-server/eureka/
+  server:
+    enable-self-preservation: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+
+logging:
+  level:
+    root: INFO

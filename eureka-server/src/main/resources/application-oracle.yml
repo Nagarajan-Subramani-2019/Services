@@ -1,0 +1,28 @@
+# Optional: activate with SPRING_PROFILES_ACTIVE=oracle.
+# This does NOT persist the Eureka registry. No database DDL is executed.
+spring:
+  datasource:
+    url: ${EUREKA_DB_URL:jdbc:oracle:thin:@//127.0.0.1:11521/FREEPDB1}
+    username: EUREKA_DB
+    password: ${EUREKA_DB_PASSWORD}
+    driver-class-name: oracle.jdbc.OracleDriver
+    hikari:
+      pool-name: EurekaOraclePool
+      maximum-pool-size: 2
+      minimum-idle: 0
+      connection-timeout: 5000
+      validation-timeout: 3000
+      initialization-fail-timeout: -1
+      data-source-properties:
+        oracle.net.CONNECT_TIMEOUT: 5000
+        oracle.jdbc.ReadTimeout: 10000
+
+# Keep registry liveness independent from the optional Oracle database.
+management:
+  endpoint:
+    health:
+      group:
+        liveness:
+          include: livenessState
+        readiness:
+          include: readinessState

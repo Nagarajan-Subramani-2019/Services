@@ -1,0 +1,10 @@
+/.gradle/
+/.gradle-sockets/
+/build/
+/.tools/
+/.idea/
+*.iml
+*.log
+.env
+.env.*
+!.env.example
