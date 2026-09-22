@@ -1,0 +1,59 @@
+spring:
+  application:
+    name: userInfoServices
+  datasource:
+    url: ${USER_INFO_DB_URL:jdbc:oracle:thin:@//127.0.0.1:11521/FREEPDB1}
+    username: USER_INFO_SCHEMA
+    password: ${USER_INFO_DB_PASSWORD}
+    driver-class-name: oracle.jdbc.OracleDriver
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 1
+      connection-timeout: 10000
+      data-source-properties:
+        "[oracle.net.CONNECT_TIMEOUT]": 5000
+        "[oracle.jdbc.ReadTimeout]": 10000
+  jdbc:
+    template:
+      query-timeout: 5s
+  sql:
+    init:
+      mode: never
+
+user-info:
+  database-port:
+    enabled: ${USER_INFO_DB_PORT_ENABLED:false}
+
+server:
+  address: ${USER_INFO_BIND_ADDRESS:127.0.0.1}
+  # Ignored when the optional database port lookup is enabled.
+  port: ${USER_INFO_PORT:8082}
+  servlet:
+    context-path: /userInfoServices
+  shutdown: graceful
+
+eureka:
+  client:
+    enabled: ${EUREKA_CLIENT_ENABLED:true}
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8760/eureka-server/eureka/}
+  instance:
+    hostname: ${USER_INFO_HOSTNAME:localhost}
+    prefer-ip-address: false
+    instance-id: ${spring.application.name}:${server.port}
+    home-page-url-path: ${server.servlet.context-path}/
+    status-page-url-path: ${server.servlet.context-path}/actuator/info
+    health-check-url-path: ${server.servlet.context-path}/actuator/health
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+
+logging:
+  level:
+    root: INFO
