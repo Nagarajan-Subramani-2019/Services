@@ -1,2 +1,3 @@
 org.springframework.boot.EnvironmentPostProcessor=\
-com.oxygenraj.userinfo.config.DatabasePortEnvironmentPostProcessor
+com.oxygenraj.userinfo.config.DatabasePortEnvironmentPostProcessor,\
+com.oxygenraj.userinfo.config.EurekaDatabasePortEnvironmentPostProcessor

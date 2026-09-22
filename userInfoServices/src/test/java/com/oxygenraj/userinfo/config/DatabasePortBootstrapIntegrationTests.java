@@ -46,6 +46,7 @@ class DatabasePortBootstrapIntegrationTests {
             application.setRegisterShutdownHook(false);
             try (ConfigurableApplicationContext context = application.run(
                     "--user-info.database-port.enabled=true",
+                    "--eureka.client.enabled=false",
                     "--spring.datasource.url=" + testUrl,
                     "--spring.datasource.password=test-only-password",
                     "--server.port=8082",

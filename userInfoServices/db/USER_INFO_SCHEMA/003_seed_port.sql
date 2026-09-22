@@ -1,5 +1,6 @@
 -- Run manually as USER_INFO_SCHEMA in FREEPDB1 after creating PROPERTIES.
--- Insert only: re-running preserves an existing server.port value.
+-- Applies the requested userInfoServices port 8770.
+-- Re-running updates this exact application's server.port row; review before execution.
 
 SET ECHO OFF
 SET VERIFY OFF
@@ -25,7 +26,7 @@ USING (
            'jdbc' AS profile,
            'jdbc' AS label,
            'server.port' AS property_key,
-           '8082' AS property_value
+           '8770' AS property_value
       FROM dual
 ) seed
 ON (
@@ -34,10 +35,12 @@ ON (
     AND target.LABEL = seed.label
     AND target."KEY" = seed.property_key
 )
+WHEN MATCHED THEN
+    UPDATE SET target."VALUE" = seed.property_value
 WHEN NOT MATCHED THEN
     INSERT (APPLICATION, PROFILE, LABEL, "KEY", "VALUE")
     VALUES (seed.application, seed.profile, seed.label, seed.property_key, seed.property_value);
 
 COMMIT;
 
-PROMPT Port seed applied; any existing server.port value was preserved.
+PROMPT userInfoServices server.port is set to 8770. Restart the service to apply it.

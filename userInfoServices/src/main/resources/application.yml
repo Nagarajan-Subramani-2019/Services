@@ -4,7 +4,7 @@ spring:
   datasource:
     url: ${USER_INFO_DB_URL:jdbc:oracle:thin:@//127.0.0.1:11521/FREEPDB1}
     username: USER_INFO_SCHEMA
-    password: ${USER_INFO_DB_PASSWORD}
+    password: ${USER_INFO_DB_PASSWORD:welcome1}
     driver-class-name: oracle.jdbc.OracleDriver
     hikari:
       maximum-pool-size: 5
@@ -23,11 +23,14 @@ spring:
 user-info:
   database-port:
     enabled: ${USER_INFO_DB_PORT_ENABLED:false}
+  eureka:
+    database-port:
+      enabled: ${USER_INFO_EUREKA_DB_PORT_ENABLED:true}
 
 server:
   address: ${USER_INFO_BIND_ADDRESS:127.0.0.1}
   # Ignored when the optional database port lookup is enabled.
-  port: ${USER_INFO_PORT:8082}
+  port: ${USER_INFO_PORT:8770}
   servlet:
     context-path: /userInfoServices
   shutdown: graceful
@@ -35,8 +38,12 @@ server:
 eureka:
   client:
     enabled: ${EUREKA_CLIENT_ENABLED:true}
+    register-with-eureka: true
+    fetch-registry: true
     service-url:
-      defaultZone: ${EUREKA_URL:http://localhost:8760/eureka-server/eureka/}
+      # The startup processor supplies the port from EUREKA_DB.PROPERTIES.
+      # EUREKA_URL supplies the host, HTTP(S) scheme and context path.
+      defaultZone: ${EUREKA_URL:http://localhost/eureka-server/eureka/}
   instance:
     hostname: ${USER_INFO_HOSTNAME:localhost}
     prefer-ip-address: false
