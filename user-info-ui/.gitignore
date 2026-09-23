@@ -1,0 +1,9 @@
+.gradle/
+build/
+frontend/dist/
+frontend/node_modules/
+.idea/
+*.iml
+*.log
+.env
+.env.*

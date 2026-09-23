@@ -1,0 +1,60 @@
+spring:
+  application:
+    name: user-info-ui
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+
+server:
+  address: ${USER_INFO_UI_BIND_ADDRESS:127.0.0.1}
+  port: ${USER_INFO_UI_PORT:8780}
+  servlet:
+    context-path: /user-info-ui
+  shutdown: graceful
+  error:
+    include-message: never
+    include-binding-errors: never
+    include-stacktrace: never
+    include-exception: false
+
+user-info:
+  # Public base URL includes the context path and has no trailing slash.
+  # Explicit Eureka URLs keep external-Tomcat links aligned with the advertised port.
+  public-url: ${USER_INFO_UI_PUBLIC_URL:http://${eureka.instance.hostname}:${eureka.instance.non-secure-port}${server.servlet.context-path}}
+  client:
+    mode: ${USER_INFO_CONNECTION_MODE:direct}
+    base-url: ${USER_INFO_BASE_URL:http://127.0.0.1:8771/userInfoServices}
+    service-id: ${USER_INFO_SERVICE_ID:userInfoServices}
+    context-path: ${USER_INFO_CONTEXT_PATH:/userInfoServices}
+
+eureka:
+  client:
+    enabled: ${EUREKA_CLIENT_ENABLED:true}
+    register-with-eureka: true
+    fetch-registry: true
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8760/eureka-server/eureka/}
+  instance:
+    hostname: ${USER_INFO_UI_HOSTNAME:localhost}
+    prefer-ip-address: false
+    non-secure-port: ${USER_INFO_UI_ADVERTISED_PORT:${server.port}}
+    instance-id: ${spring.application.name}:${eureka.instance.hostname}:${eureka.instance.non-secure-port}
+    status-page-url-path: ${server.servlet.context-path}/actuator/health
+    health-check-url-path: ${server.servlet.context-path}/actuator/health
+    home-page-url-path: ${server.servlet.context-path}/
+    status-page-url: ${user-info.public-url}/actuator/health
+    health-check-url: ${user-info.public-url}/actuator/health
+    home-page-url: ${user-info.public-url}/
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+      show-components: never
+
+logging:
+  level:
+    root: INFO

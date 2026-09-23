@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light">
+  <meta name="theme-color" content="#123e40">
+  <meta name="description" content="Create an account, sign in and view your profile with userInfoServices.">
+  <title>Oxygen — User account</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <div class="app-shell">
+    <main id="main-content" class="workspace">
+      <header class="workspace-top"><span class="workspace-label">YOUR PERSONAL SPACE</span><span class="edition">OXYGEN / 01</span></header>
+      <div id="offline-notice" class="offline-notice" role="status" hidden>You’re offline. Reconnect to continue.</div>
+
+      <section id="access-view" class="access-view" aria-label="Account access">
+        <div class="view-heading"><span class="section-number">01 / GET STARTED</span><h2 id="access-title">Good to see you.</h2><p id="access-description">Sign in to pick up where you left off.</p></div>
+        <div class="tabs" role="tablist" aria-label="Account options">
+          <button id="sign-in-tab" class="tab is-active" type="button" role="tab" aria-selected="true" aria-controls="sign-in-panel" tabindex="0">Sign in</button>
+          <button id="sign-up-tab" class="tab" type="button" role="tab" aria-selected="false" aria-controls="sign-up-panel" tabindex="-1">Create account</button>
+        </div>
+        <div id="access-notice" class="notice" role="status" aria-live="polite" hidden></div>
+
+        <div id="sign-in-panel" role="tabpanel" aria-labelledby="sign-in-tab">
+          <form id="sign-in-form" novalidate>
+            <div class="field"><label for="sign-in-username">Username</label><input id="sign-in-username" name="username" type="text" placeholder="Your username" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="64" required aria-describedby="sign-in-username-error"><p class="field-error" id="sign-in-username-error"></p></div>
+            <div class="field"><label for="sign-in-password">Password</label><div class="password-wrap"><input id="sign-in-password" name="password" type="password" placeholder="Your password" autocomplete="current-password" maxlength="72" required aria-describedby="sign-in-password-error"><button type="button" class="password-toggle" data-password-target="sign-in-password" aria-controls="sign-in-password" aria-label="Show password" aria-pressed="false">Show</button></div><p class="field-error" id="sign-in-password-error"></p></div>
+            <p class="form-error" id="sign-in-form-error" role="alert" hidden></p>
+            <button class="primary-button" type="submit"><span data-button-label>Sign in</span><span class="button-arrow" aria-hidden="true">↗</span><span class="spinner" aria-hidden="true"></span></button>
+          </form>
+          <p class="switch-prompt">First time here? <button type="button" class="text-button" id="create-account-link">Let’s create your account <span aria-hidden="true">→</span></button></p>
+        </div>
+
+        <div id="sign-up-panel" role="tabpanel" aria-labelledby="sign-up-tab" hidden>
+          <form id="sign-up-form" novalidate>
+            <div class="field"><label for="sign-up-username">Username</label><input id="sign-up-username" name="username" type="text" placeholder="e.g. alex.morgan" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="64" required aria-describedby="sign-up-username-hint sign-up-username-error"><p class="field-hint" id="sign-up-username-hint">3–64 characters. Letters, numbers, dots, _ or -.</p><p class="field-error" id="sign-up-username-error"></p></div>
+            <div class="field"><label for="sign-up-email">Email address</label><input id="sign-up-email" name="email" type="email" placeholder="you@example.com" autocomplete="email" maxlength="254" required aria-describedby="sign-up-email-error"><p class="field-error" id="sign-up-email-error"></p></div>
+            <div class="field"><label for="sign-up-phoneNumber">Phone number</label><input id="sign-up-phoneNumber" name="phoneNumber" type="tel" placeholder="+919876543210" autocomplete="tel" maxlength="21" required aria-describedby="sign-up-phoneNumber-hint sign-up-phoneNumber-error"><p class="field-hint" id="sign-up-phoneNumber-hint">Include your country code. Digits only, with optional +.</p><p class="field-error" id="sign-up-phoneNumber-error"></p></div>
+            <div class="field"><label for="sign-up-password">Password</label><div class="password-wrap"><input id="sign-up-password" name="password" type="password" placeholder="Create a strong password" autocomplete="new-password" maxlength="72" required aria-describedby="sign-up-password-hint sign-up-password-error"><button type="button" class="password-toggle" data-password-target="sign-up-password" aria-controls="sign-up-password" aria-label="Show password" aria-pressed="false">Show</button></div><p class="field-hint" id="sign-up-password-hint">At least 10 characters; at most 72 UTF-8 bytes.</p><p class="field-error" id="sign-up-password-error"></p></div>
+            <div class="field"><label for="sign-up-confirmPassword">Confirm password</label><div class="password-wrap"><input id="sign-up-confirmPassword" name="confirmPassword" type="password" placeholder="Enter your password again" autocomplete="new-password" maxlength="72" required aria-describedby="sign-up-confirmPassword-error"><button type="button" class="password-toggle" data-password-target="sign-up-confirmPassword" aria-controls="sign-up-confirmPassword" aria-label="Show confirmation password" aria-pressed="false">Show</button></div><p class="field-error" id="sign-up-confirmPassword-error"></p></div>
+            <p class="form-error" id="sign-up-form-error" role="alert" hidden></p>
+            <button class="primary-button" type="submit"><span data-button-label>Create account</span><span class="button-arrow" aria-hidden="true">↗</span><span class="spinner" aria-hidden="true"></span></button>
+          </form>
+          <p class="switch-prompt">Already part of Oxygen? <button type="button" class="text-button" id="sign-in-link">Sign in <span aria-hidden="true">→</span></button></p>
+        </div>
+        <div class="access-footnote"><span aria-hidden="true">◇</span><span>Account details are handled by userInfoServices.<br>This app does not save passwords in browser storage.</span></div>
+      </section>
+
+      <section id="profile-view" class="profile-view" aria-labelledby="welcome-title" hidden>
+        <div class="profile-topline"><span class="section-number">02 / YOUR SPACE</span><button id="sign-out" class="text-button" type="button">Sign out <span aria-hidden="true">↗</span></button></div>
+        <div class="welcome-icon" aria-hidden="true">✳</div>
+        <span class="welcome-kicker">A LITTLE HI. A BIG HELLO.</span>
+        <h2 id="welcome-title" tabindex="-1">Hello, <span id="welcome-name"></span><span class="teal-period">.</span></h2>
+        <p class="welcome-description">It’s good to have you here.<br>Your profile is connected and ready.</p>
+        <div class="profile-card">
+          <div class="profile-card-heading"><h3>Your details</h3><span id="profile-status" class="status-badge">Active</span></div>
+          <dl class="profile-details"><div><dt>Username</dt><dd id="profile-username"></dd></div><div><dt>Email</dt><dd id="profile-email"></dd></div><div><dt>Phone</dt><dd id="profile-phone"></dd></div><div><dt>Account ID</dt><dd id="profile-id"></dd></div><div><dt>Role</dt><dd id="profile-role"></dd></div><div><dt>Joined</dt><dd id="profile-created"></dd></div></dl>
+          <div class="profile-card-footer"><span id="profile-updated" role="status" aria-live="polite">Loaded from userInfoServices</span><button id="refresh-profile" class="text-button" type="button">Refresh <span aria-hidden="true">↻</span></button></div>
+        </div>
+        <p id="profile-error" class="form-error" role="alert" hidden></p>
+        <p class="session-note">This preview checks your credentials; it does not create a persistent login session. Sign out clears this screen. Profile reads are currently public; entitlement will be added separately.</p>
+      </section>
+      <footer class="workspace-footer"><span>A simple beginning. A connected future.</span><span aria-hidden="true">✳</span></footer>
+    </main>
+  </div>
+  <noscript><div class="noscript-message">Please enable JavaScript to create an account or sign in.</div></noscript>
+</body>
+</html>
