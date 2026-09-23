@@ -5,7 +5,6 @@ import com.oxygenraj.userinfo.api.UserPage;
 import com.oxygenraj.userinfo.api.UserResponse;
 import com.oxygenraj.userinfo.repository.UserRepository;
 import java.util.Locale;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,14 +32,8 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
-    public UserResponse get(long id, Authentication authentication) {
-        var user = repository.findById(id).orElseThrow(UserNotFoundException::new);
-        boolean admin = authentication.getAuthorities().stream().anyMatch(role -> role.getAuthority().equals("ROLE_ADMIN"));
-        if (!admin && !user.username().equals(normalize(authentication.getName()))) {
-            // Do not disclose whether another user's ID exists.
-            throw new UserNotFoundException();
-        }
-        return user.toResponse();
+    public UserResponse get(long id) {
+        return repository.findById(id).orElseThrow(UserNotFoundException::new).toResponse();
     }
 
     public UserResponse current(String username) {

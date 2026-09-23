@@ -34,6 +34,9 @@ import static org.assertj.core.api.Assertions.assertThat;
         "spring.datasource.driver-class-name=org.h2.Driver",
         "spring.datasource.username=sa",
         "spring.datasource.password=test-only",
+        "user-info.properties-datasource.url=jdbc:oracle:thin:@//properties.example.test:1/FREEPDB1",
+        "user-info.properties-datasource.username=EUREKA_DB",
+        "user-info.properties-datasource.password=separate-properties-test-only",
         "spring.sql.init.mode=always",
         "spring.sql.init.schema-locations=classpath:test-schema.sql",
         "user-info.database-port.enabled=false",
@@ -71,6 +74,14 @@ class UserApiIntegrationTest {
     void closeClient() {
         if (client != null) {
             client.close();
+        }
+    }
+
+    @Test
+    void crudPoolDoesNotUseTheSeparatePropertiesDatabaseSettings() throws Exception {
+        try (var connection = jdbc.getDataSource().getConnection()) {
+            assertThat(connection.getMetaData().getURL()).startsWith("jdbc:h2:mem:userinfo");
+            assertThat(connection.getMetaData().getUserName()).isEqualToIgnoringCase("sa");
         }
     }
 
@@ -211,7 +222,7 @@ class UserApiIntegrationTest {
         assertThat(id(user)).isEqualTo(id(created));
         assertNoSecrets(response, PASSWORD);
         assertThat(response.headers().allValues("Set-Cookie")).noneMatch(value -> value.contains("JSESSIONID"));
-        assertSafeError(get("/userdetails/" + id(created), null), 401, PASSWORD);
+        assertSafeError(get("/actuator/info", null), 401, PASSWORD);
     }
 
     @Test
@@ -233,58 +244,99 @@ class UserApiIntegrationTest {
     }
 
     @Test
-    void protectedEndpointsRequireBasicAuthenticationAndRejectInvalidOrDisabledAccounts() throws Exception {
-        Map<String, Object> user = create("protecteduser", "protected@example.com");
-        String path = "/userdetails/" + id(user);
+    void anonymousReaderCanListAnEmptyTableWithoutAnAuthenticationChallenge() throws Exception {
+        HttpResponse<String> response = get("/userdetails", null);
 
-        assertSafeError(get("/userdetails", null), 401, PASSWORD);
-        HttpResponse<String> anonymous = get(path, null);
-        assertSafeError(anonymous, 401, PASSWORD);
-        assertThat(anonymous.headers().firstValue("WWW-Authenticate").orElse("")).startsWith("Basic");
-        assertSafeError(get(path, basic("protecteduser", "WrongSecret9!")), 401, "WrongSecret9!");
-        jdbc.update("UPDATE " + TABLE + " SET ENABLED = 0 WHERE ID = ?", id(user));
-        assertSafeError(get(path, basic("protecteduser", PASSWORD)), 401, PASSWORD);
+        assertThat(response.statusCode()).isEqualTo(200);
+        Map<String, Object> page = body(response);
+        assertThat((List<?>) page.get("content")).isEmpty();
+        assertThat(((Number) page.get("page")).intValue()).isZero();
+        assertThat(((Number) page.get("size")).intValue()).isEqualTo(20);
+        assertThat(((Number) page.get("totalElements")).longValue()).isZero();
+        assertThat(response.headers().firstValue("WWW-Authenticate")).isEmpty();
+        assertNoSecrets(response, PASSWORD);
     }
 
     @Test
-    void persistedBasicUserCanReadSelfButCannotListOrDiscoverAnotherUser() throws Exception {
-        Map<String, Object> owner = create("owner", "owner@example.com");
-        Map<String, Object> other = create("other", "other@example.com");
-        String authorization = basic("OWNER", PASSWORD);
+    void anonymousReaderCanReadAnyExistingUserAndOnlyMissingRecordsReturnNotFound() throws Exception {
+        Map<String, Object> first = create("firstuser", "first@example.com");
+        Map<String, Object> other = create("otheruser", "other@example.com");
 
-        HttpResponse<String> self = get("/userdetails/" + id(owner), authorization);
-        assertThat(self.statusCode()).isEqualTo(200);
-        assertUser(body(self), "owner", "owner@example.com", "USER");
-        assertNoSecrets(self, PASSWORD);
-        assertSafeError(get("/userdetails", authorization), 403, PASSWORD);
+        for (Map<String, Object> created : List.of(first, other)) {
+            HttpResponse<String> response = get("/userdetails/" + id(created), null);
+            assertThat(response.statusCode()).isEqualTo(200);
+            assertUser(body(response), (String) created.get("username"), (String) created.get("email"), "USER");
+            assertThat(id(body(response))).isEqualTo(id(created));
+            assertThat(response.headers().firstValue("WWW-Authenticate")).isEmpty();
+            assertNoSecrets(response, PASSWORD);
+        }
 
-        HttpResponse<String> hidden = get("/userdetails/" + id(other), authorization);
-        HttpResponse<String> missing = get("/userdetails/" + Long.MAX_VALUE, authorization);
-        assertSafeError(hidden, 404, PASSWORD);
+        HttpResponse<String> missing = get("/userdetails/" + Long.MAX_VALUE, null);
         assertSafeError(missing, 404, PASSWORD);
-        assertThat(body(hidden).get("code")).isEqualTo(body(missing).get("code"));
-        assertThat(body(hidden).get("message")).isEqualTo(body(missing).get("message"));
+        assertThat(body(missing).get("code")).isEqualTo("NOT_FOUND");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"0", "-1", "not-a-number", "9223372036854775808"})
+    void anonymousIndividualReadStillValidatesTheRequestedId(String invalidId) throws Exception {
+        assertSafeError(get("/userdetails/" + invalidId, null), 400, PASSWORD);
     }
 
     @Test
-    void manuallyPromotedAdminCanReadAnotherUserAndPageThroughSafeProfiles() throws Exception {
-        Map<String, Object> admin = create("adminuser", "admin@example.com");
+    void disabledUserRecordsRemainPubliclyReadableWithoutChangingCredentialVerification() throws Exception {
+        Map<String, Object> disabled = create("disabledreader", "disabledreader@example.com");
+        jdbc.update("UPDATE " + TABLE + " SET ENABLED = 0 WHERE ID = ?", id(disabled));
+
+        HttpResponse<String> profile = get("/userdetails/" + id(disabled), null);
+        assertThat(profile.statusCode()).isEqualTo(200);
+        assertThat(body(profile)).containsEntry("username", "disabledreader").containsEntry("enabled", false);
+        assertNoSecrets(profile, PASSWORD);
+
+        HttpResponse<String> page = get("/userdetails", null);
+        assertThat(page.statusCode()).isEqualTo(200);
+        assertThat(object(((List<?>) body(page).get("content")).getFirst())).containsEntry("enabled", false);
+        assertNoSecrets(page, PASSWORD);
+
+        assertSafeError(post("/authuserdetails", credentials("disabledreader", PASSWORD)), 401, PASSWORD);
+    }
+
+    @Test
+    void publicReadsIgnoreStaleMalformedUnknownAndDisabledBasicCredentials() throws Exception {
+        Map<String, Object> existing = create("existingreader", "existingreader@example.com");
+        Map<String, Object> disabled = create("disabledreader", "disabledreader@example.com");
+        jdbc.update("UPDATE " + TABLE + " SET ENABLED = 0 WHERE ID = ?", id(disabled));
+
+        for (String authorization : List.of(
+                basic("existingreader", "StalePassword9!"),
+                "Basic not-valid-base64!",
+                basic("unknownreader", PASSWORD),
+                basic("disabledreader", PASSWORD))) {
+            for (String path : List.of("/userdetails", "/userdetails/" + id(existing))) {
+                HttpResponse<String> response = get(path, authorization);
+                assertThat(response.statusCode()).as("public GET %s must not authenticate", path).isEqualTo(200);
+                assertThat(response.headers().firstValue("WWW-Authenticate")).isEmpty();
+                assertNoSecrets(response, PASSWORD, "StalePassword9!");
+            }
+        }
+    }
+
+    @Test
+    void anonymousReaderCanPageThroughSafeProfilesWithoutAnAdminAccount() throws Exception {
+        create("first", "first@example.com");
         Map<String, Object> second = create("second", "second@example.com");
         Map<String, Object> third = create("third", "third@example.com");
-        promoteAdmin(id(admin));
-        String authorization = basic("adminuser", PASSWORD);
 
-        HttpResponse<String> profile = get("/userdetails/" + id(second), authorization);
+        HttpResponse<String> profile = get("/userdetails/" + id(second), null);
         assertThat(profile.statusCode()).isEqualTo(200);
         assertUser(body(profile), "second", "second@example.com", "USER");
         assertNoSecrets(profile, PASSWORD);
 
-        HttpResponse<String> defaultPage = get("/userdetails", authorization);
+        HttpResponse<String> defaultPage = get("/userdetails", null);
         assertThat(defaultPage.statusCode()).isEqualTo(200);
         assertThat(((Number) body(defaultPage).get("page")).intValue()).isZero();
         assertThat(((Number) body(defaultPage).get("size")).intValue()).isEqualTo(20);
 
-        HttpResponse<String> pageResponse = get("/userdetails?page=1&size=2", authorization);
+        HttpResponse<String> pageResponse = get("/userdetails?page=1&size=2", null);
         assertThat(pageResponse.statusCode()).isEqualTo(200);
         Map<String, Object> page = body(pageResponse);
         assertThat(((Number) page.get("page")).intValue()).isEqualTo(1);
@@ -300,16 +352,51 @@ class UserApiIntegrationTest {
     }
 
     @Test
-    void adminPaginationRejectsInvalidBoundsAndAcceptsDocumentedMaximums() throws Exception {
-        Map<String, Object> admin = create("pageadmin", "pageadmin@example.com");
-        promoteAdmin(id(admin));
-        String authorization = basic("pageadmin", PASSWORD);
+    void publicPaginationRejectsInvalidBoundsAndAcceptsDocumentedMaximums() throws Exception {
+        create("pageuser", "pageuser@example.com");
         for (String query : List.of("page=-1", "page=1000001", "size=0", "size=101", "page=not-a-number")) {
-            assertSafeError(get("/userdetails?" + query, authorization), 400, PASSWORD);
+            assertSafeError(get("/userdetails?" + query, null), 400, PASSWORD);
         }
-        HttpResponse<String> maximum = get("/userdetails?page=1000000&size=100", authorization);
+        HttpResponse<String> maximum = get("/userdetails?page=1000000&size=100", null);
         assertThat(maximum.statusCode()).isEqualTo(200);
         assertThat((List<?>) body(maximum).get("content")).isEmpty();
+        assertNoSecrets(maximum, PASSWORD);
+    }
+
+    @Test
+    void actuatorInfoStillRequiresAnEnabledAdminWithValidBasicCredentials() throws Exception {
+        Map<String, Object> user = create("infoadmin", "infoadmin@example.com");
+
+        HttpResponse<String> anonymous = get("/actuator/info", null);
+        assertSafeError(anonymous, 401, PASSWORD);
+        assertThat(anonymous.headers().firstValue("WWW-Authenticate").orElse("")).startsWith("Basic");
+        assertSafeError(get("/actuator/info", basic("infoadmin", PASSWORD)), 403, PASSWORD);
+        assertSafeError(get("/actuator/info", basic("infoadmin", "WrongSecret9!")), 401, "WrongSecret9!");
+        assertSafeError(get("/actuator/info", "Basic not-valid-base64!"), 401, PASSWORD);
+
+        promoteAdmin(id(user));
+        HttpResponse<String> admin = get("/actuator/info", basic("infoadmin", PASSWORD));
+        assertThat(admin.statusCode()).isEqualTo(200);
+        assertNoSecrets(admin, PASSWORD);
+
+        jdbc.update("UPDATE " + TABLE + " SET ENABLED = 0 WHERE ID = ?", id(user));
+        assertSafeError(get("/actuator/info", basic("infoadmin", PASSWORD)), 401, PASSWORD);
+    }
+
+    @Test
+    void publicReadChainDoesNotOpenUnrelatedRoutesNestedPathsOrWriteMethods() throws Exception {
+        Map<String, Object> user = create("routeadmin", "routeadmin@example.com");
+        promoteAdmin(id(user));
+        String authorization = basic("routeadmin", PASSWORD);
+
+        for (String path : List.of("/not-a-public-route", "/userdetails/" + id(user) + "/extra")) {
+            assertSafeError(get(path, null), 401, PASSWORD);
+            assertSafeError(get(path, authorization), 403, PASSWORD);
+        }
+        for (String method : List.of("PUT", "PATCH", "DELETE")) {
+            assertSafeError(send(method, "/userdetails/" + id(user), null, null), 403, PASSWORD);
+        }
+        assertThat(countUsers()).isEqualTo(1);
     }
 
     @Test
@@ -330,7 +417,7 @@ class UserApiIntegrationTest {
         assertUser(body(response), "untrusted", "untrusted@example.com", "USER");
         assertThat(jdbc.queryForObject("SELECT USER_ROLE FROM " + TABLE + " WHERE ID = ?",
                 String.class, id(body(response)))).isEqualTo("USER");
-        assertSafeError(get("/userdetails", basic("untrusted", PASSWORD)), 403, PASSWORD);
+        assertSafeError(get("/actuator/info", basic("untrusted", PASSWORD)), 403, PASSWORD);
     }
 
     private Map<String, Object> create(String username, String email) throws Exception {

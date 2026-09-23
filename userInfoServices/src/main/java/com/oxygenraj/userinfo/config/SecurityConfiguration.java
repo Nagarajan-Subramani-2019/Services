@@ -10,6 +10,7 @@ import java.util.Map;
 import tools.jackson.databind.ObjectMapper;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ProviderManager;
@@ -65,6 +66,22 @@ public class SecurityConfiguration {
     }
 
     @Bean
+    @Order(1)
+    SecurityFilterChain publicUserDetailsSecurityFilterChain(HttpSecurity http) throws Exception {
+        // Reads are intentionally public until a separate entitlement service is added.
+        // Do not install HTTP Basic here: even stale credentials must not gate a read.
+        http.securityMatchers(matchers -> matchers
+                        .requestMatchers(HttpMethod.GET, "/userdetails", "/userdetails/*"))
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .requestCache(cache -> cache.disable())
+                .formLogin(form -> form.disable())
+                .logout(logout -> logout.disable())
+                .authorizeHttpRequests(authorize -> authorize.anyRequest().permitAll());
+        return http.build();
+    }
+
+    @Bean
+    @Order(2)
     SecurityFilterChain securityFilterChain(HttpSecurity http, AuthenticationManager manager, ObjectMapper mapper) throws Exception {
         http.authenticationManager(manager)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -77,8 +94,6 @@ public class SecurityConfiguration {
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers(HttpMethod.GET, "/actuator/health", "/actuator/health/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/userdetails", "/authuserdetails").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/userdetails").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/userdetails/*").authenticated()
                         .requestMatchers(HttpMethod.GET, "/actuator/info").hasRole("ADMIN")
                         .anyRequest().denyAll())
                 .httpBasic(basic -> basic.authenticationEntryPoint((request, response, exception) -> {

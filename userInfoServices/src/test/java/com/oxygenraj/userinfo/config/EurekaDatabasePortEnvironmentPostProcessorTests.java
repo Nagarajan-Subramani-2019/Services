@@ -46,8 +46,9 @@ class EurekaDatabasePortEnvironmentPostProcessorTests {
         MockEnvironment environment = new MockEnvironment()
                 .withProperty("eureka.client.enabled", "false")
                 .withProperty(PREFIX + "enabled", "${test-only-unresolved-secret}")
-                .withProperty("spring.datasource.password", "${test-only-unresolved-secret}")
-                .withProperty("spring.datasource.url", PASSWORD)
+                .withProperty("user-info.properties-datasource.password", "${test-only-unresolved-secret}")
+                .withProperty("user-info.properties-datasource.username", "${test-only-unresolved-secret}")
+                .withProperty("user-info.properties-datasource.url", PASSWORD)
                 .withProperty(ENDPOINT, "not-an-endpoint-" + PASSWORD)
                 .withProperty("server.port", "8770");
 
@@ -63,8 +64,9 @@ class EurekaDatabasePortEnvironmentPostProcessorTests {
     void disabledDatabaseLookupPreservesTheStaticEndpointAndSkipsCredentials() {
         MockEnvironment environment = new MockEnvironment()
                 .withProperty(PREFIX + "enabled", "false")
-                .withProperty("spring.datasource.password", "${test-only-unresolved-secret}")
-                .withProperty("spring.datasource.url", PASSWORD)
+                .withProperty("user-info.properties-datasource.password", "${test-only-unresolved-secret}")
+                .withProperty("user-info.properties-datasource.username", "${test-only-unresolved-secret}")
+                .withProperty("user-info.properties-datasource.url", PASSWORD)
                 .withProperty(ENDPOINT, "http://static.example.test:9988/registry/eureka/");
 
         processor.postProcessEnvironment(environment, application);
@@ -95,20 +97,64 @@ class EurekaDatabasePortEnvironmentPostProcessorTests {
     }
 
     @Test
-    void usesOnlyTheResolvedApplicationDatasourceCredentials() {
+    void usesOnlyTheSeparateResolvedPropertiesDatasourceCredentials() {
         String databaseUrl = "jdbc:oracle:thin:@//database.example.test:1521/FREEPDB1";
         MockEnvironment environment = new MockEnvironment()
-                .withProperty("USER_INFO_DB_URL", databaseUrl)
-                .withProperty("USER_INFO_DB_PASSWORD", PASSWORD)
-                .withProperty("spring.datasource.url", "${USER_INFO_DB_URL}")
-                .withProperty("spring.datasource.password", "${USER_INFO_DB_PASSWORD}")
-                .withProperty("EUREKA_DB_PASSWORD", "not-the-application-account-password");
+                .withProperty("EUREKA_DB_URL", databaseUrl)
+                .withProperty("EUREKA_DB_PASSWORD", PASSWORD)
+                .withProperty("user-info.properties-datasource.url", "${EUREKA_DB_URL}")
+                .withProperty("user-info.properties-datasource.username", "EUREKA_DB")
+                .withProperty("user-info.properties-datasource.password", "${EUREKA_DB_PASSWORD}")
+                .withProperty("spring.datasource.url", "${test-only-unresolved-secret}")
+                .withProperty("spring.datasource.password", "${test-only-unresolved-secret}")
+                .withProperty("USER_INFO_DB_PASSWORD", "not-the-properties-account-password");
         when(portReader.readPort(databaseUrl, PASSWORD)).thenReturn(9123);
 
         processor.postProcessEnvironment(environment, application);
 
         verify(portReader).readPort(databaseUrl, PASSWORD);
         assertThat(boundClientEndpoint(environment)).isEqualTo("http://localhost:9123/eureka-server/eureka/");
+    }
+
+    @Test
+    void neverFallsBackToCrudCredentialsWhenThePropertiesPasswordIsMissing() {
+        MockEnvironment environment = new MockEnvironment()
+                .withProperty("spring.datasource.username", "USER_INFO_SCHEMA")
+                .withProperty("spring.datasource.password", PASSWORD)
+                .withProperty("USER_INFO_DB_PASSWORD", PASSWORD);
+
+        Throwable failure = catchThrowable(() -> processor.postProcessEnvironment(environment, application));
+
+        assertSanitized(failure);
+        assertThat(failure).hasMessageContaining("EUREKA_DB_PASSWORD");
+        verifyNoInteractions(portReader);
+        assertNoDatabasePropertySource(environment);
+    }
+
+    @Test
+    void usesThePropertiesUrlDefaultEvenWhenCrudUsesADifferentDatabase() {
+        MockEnvironment environment = configuredEnvironment()
+                .withProperty("spring.datasource.url", "jdbc:oracle:thin:@//crud.example.test:1521/FREEPDB1")
+                .withProperty("USER_INFO_DB_URL", "jdbc:oracle:thin:@//other-crud.example.test:1521/FREEPDB1");
+        when(portReader.readPort(DEFAULT_DATABASE_URL, PASSWORD)).thenReturn(9123);
+
+        processor.postProcessEnvironment(environment, application);
+
+        verify(portReader).readPort(DEFAULT_DATABASE_URL, PASSWORD);
+        assertThat(boundClientEndpoint(environment)).isEqualTo("http://localhost:9123/eureka-server/eureka/");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"", " ", "USER_INFO_SCHEMA", "SYSTEM", "eureka_db", PASSWORD,
+            "${test-only-unresolved-secret}"})
+    void rejectsAnUnexpectedPropertiesDatabaseUsernameWithoutConnecting(String username) {
+        MockEnvironment environment = configuredEnvironment()
+                .withProperty("user-info.properties-datasource.username", username);
+
+        Throwable failure = catchThrowable(() -> processor.postProcessEnvironment(environment, application));
+
+        assertSanitized(failure);
+        verifyNoInteractions(portReader);
     }
 
     @ParameterizedTest
@@ -190,7 +236,7 @@ class EurekaDatabasePortEnvironmentPostProcessorTests {
     void rejectsMissingBlankOrUnresolvedPasswordsWithoutLeakingTheirContents(String password) {
         MockEnvironment environment = new MockEnvironment();
         if (password != null) {
-            environment.withProperty("spring.datasource.password", password);
+            environment.withProperty("user-info.properties-datasource.password", password);
         }
 
         Throwable failure = catchThrowable(() -> processor.postProcessEnvironment(environment, application));
@@ -206,7 +252,7 @@ class EurekaDatabasePortEnvironmentPostProcessorTests {
             "${test-only-unresolved-secret}"
     })
     void rejectsInvalidOrCredentialBearingDatabaseUrls(String databaseUrl) {
-        MockEnvironment environment = configuredEnvironment().withProperty("spring.datasource.url", databaseUrl);
+        MockEnvironment environment = configuredEnvironment().withProperty("user-info.properties-datasource.url", databaseUrl);
 
         Throwable failure = catchThrowable(() -> processor.postProcessEnvironment(environment, application));
 
@@ -238,7 +284,7 @@ class EurekaDatabasePortEnvironmentPostProcessorTests {
     }
 
     private static MockEnvironment configuredEnvironment() {
-        return new MockEnvironment().withProperty("spring.datasource.password", PASSWORD);
+        return new MockEnvironment().withProperty("user-info.properties-datasource.password", PASSWORD);
     }
 
     private static String boundClientEndpoint(MockEnvironment environment) {

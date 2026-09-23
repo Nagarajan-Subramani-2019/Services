@@ -15,6 +15,7 @@ import org.springframework.context.ConfigurableApplicationContext;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
@@ -33,8 +34,9 @@ class DatabasePortBootstrapIntegrationTests {
         when(statement.executeQuery()).thenReturn(rows);
         when(rows.next()).thenReturn(true, false);
         when(rows.getString("VALUE")).thenReturn("8182");
-        when(rows.getString("SESSION_USER")).thenReturn("USER_INFO_SCHEMA");
-        when(rows.getString("CURRENT_SCHEMA")).thenReturn("USER_INFO_SCHEMA");
+        when(rows.getString("SESSION_USER")).thenReturn("EUREKA_DB");
+        when(rows.getString("CURRENT_SCHEMA")).thenReturn("EUREKA_DB");
+        when(rows.getString("CON_NAME")).thenReturn("FREEPDB1");
 
         // Preserve the driver's one-time registration before mocking the JDBC boundary.
         Class.forName("oracle.jdbc.OracleDriver");
@@ -47,8 +49,10 @@ class DatabasePortBootstrapIntegrationTests {
             try (ConfigurableApplicationContext context = application.run(
                     "--user-info.database-port.enabled=true",
                     "--eureka.client.enabled=false",
-                    "--spring.datasource.url=" + testUrl,
-                    "--spring.datasource.password=test-only-password",
+                    "--EUREKA_DB_URL=" + testUrl,
+                    "--EUREKA_DB_PASSWORD=test-only-properties-password",
+                    "--spring.datasource.url=jdbc:oracle:thin:@//crud.example.test:1521/FREEPDB1",
+                    "--spring.datasource.password=test-only-crud-password",
                     "--server.port=8082",
                     "--spring.main.banner-mode=off")) {
                 assertThat(context.getEnvironment().getProperty("server.port", Integer.class)).isEqualTo(8182);
@@ -56,6 +60,10 @@ class DatabasePortBootstrapIntegrationTests {
                         .isEqualTo("userInfoServices");
                 assertThat(context.getEnvironment().getProperty("spring.datasource.username"))
                         .isEqualTo("USER_INFO_SCHEMA");
+                assertThat(context.getEnvironment().getProperty("spring.datasource.url"))
+                        .isEqualTo("jdbc:oracle:thin:@//crud.example.test:1521/FREEPDB1");
+                assertThat(context.getEnvironment().getProperty("spring.datasource.password"))
+                        .isEqualTo("test-only-crud-password");
                 assertThat(context.getEnvironment().getProperty("server.servlet.context-path"))
                         .isEqualTo("/userInfoServices");
                 assertThat(context.getEnvironment().getProperty("eureka.instance.instance-id"))
@@ -63,6 +71,10 @@ class DatabasePortBootstrapIntegrationTests {
                 assertThat(context.getEnvironment().getProperty("eureka.instance.health-check-url-path"))
                         .isEqualTo("/userInfoServices/actuator/health");
             }
+            driverManager.verify(() -> DriverManager.getConnection(eq(testUrl), argThat(properties ->
+                    "EUREKA_DB".equals(properties.getProperty("user"))
+                    && "test-only-properties-password".equals(properties.getProperty("password")))));
+            driverManager.verifyNoMoreInteractions();
         }
         verify(rows).close();
         verify(statement).close();

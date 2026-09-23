@@ -37,7 +37,7 @@ class DatabasePortEnvironmentPostProcessorTests {
     void theLookupIsDisabledByDefault() {
         MockEnvironment environment = new MockEnvironment()
                 .withProperty("server.port", "8082")
-                .withProperty("spring.datasource.password", "${test-only-unresolved-secret}");
+                .withProperty("user-info.properties-datasource.password", "${test-only-unresolved-secret}");
 
         processor.postProcessEnvironment(environment, application);
 
@@ -50,8 +50,9 @@ class DatabasePortEnvironmentPostProcessorTests {
     void explicitlyDisablingTheLookupPreservesTheConfiguredPort() {
         MockEnvironment environment = new MockEnvironment()
                 .withProperty(PREFIX + "enabled", "false")
-                .withProperty("spring.datasource.url", "invalid-url-" + PASSWORD)
-                .withProperty("spring.datasource.password", "${test-only-unresolved-secret}")
+                .withProperty("user-info.properties-datasource.url", "invalid-url-" + PASSWORD)
+                .withProperty("user-info.properties-datasource.username", "${test-only-unresolved-secret}")
+                .withProperty("user-info.properties-datasource.password", "${test-only-unresolved-secret}")
                 .withProperty("server.port", "8083")
                 .withProperty("spring.application.name", "userInfoServices");
 
@@ -65,7 +66,10 @@ class DatabasePortEnvironmentPostProcessorTests {
 
     @Test
     void enabledLookupUsesTheDefaultOracleAddress() {
-        MockEnvironment environment = enabledEnvironment().withProperty("spring.datasource.password", PASSWORD);
+        MockEnvironment environment = enabledEnvironment()
+                .withProperty("user-info.properties-datasource.password", PASSWORD)
+                .withProperty("spring.datasource.url", "jdbc:oracle:thin:@//crud.example.test:1521/FREEPDB1")
+                .withProperty("USER_INFO_DB_URL", "jdbc:oracle:thin:@//other-crud.example.test:1521/FREEPDB1");
         when(portReader.readPort(DatabasePortEnvironmentPostProcessor.DEFAULT_URL, PASSWORD)).thenReturn(8084);
 
         processor.postProcessEnvironment(environment, application);
@@ -75,13 +79,17 @@ class DatabasePortEnvironmentPostProcessorTests {
     }
 
     @Test
-    void readsTheSameResolvedDatasourceConfigurationAsCrud() {
+    void readsOnlyTheSeparateResolvedPropertiesDatasourceConfiguration() {
         String url = "jdbc:oracle:thin:@//database.example.test:1521/TESTPDB";
         MockEnvironment environment = enabledEnvironment()
-                .withProperty("USER_INFO_DB_URL", url)
-                .withProperty("USER_INFO_DB_PASSWORD", PASSWORD)
-                .withProperty("spring.datasource.url", "${USER_INFO_DB_URL}")
-                .withProperty("spring.datasource.password", "${USER_INFO_DB_PASSWORD}");
+                .withProperty("EUREKA_DB_URL", url)
+                .withProperty("EUREKA_DB_PASSWORD", PASSWORD)
+                .withProperty("user-info.properties-datasource.url", "${EUREKA_DB_URL}")
+                .withProperty("user-info.properties-datasource.username", "EUREKA_DB")
+                .withProperty("user-info.properties-datasource.password", "${EUREKA_DB_PASSWORD}")
+                .withProperty("spring.datasource.url", "${test-only-unresolved-secret}")
+                .withProperty("spring.datasource.password", "${test-only-unresolved-secret}")
+                .withProperty("USER_INFO_DB_PASSWORD", "not-the-properties-account-password");
         when(portReader.readPort(url, PASSWORD)).thenReturn(8085);
 
         processor.postProcessEnvironment(environment, application);
@@ -91,9 +99,51 @@ class DatabasePortEnvironmentPostProcessorTests {
     }
 
     @Test
+    void disablingEurekaDoesNotDisableTheIndependentServicePortLookup() {
+        MockEnvironment environment = enabledEnvironment()
+                .withProperty("eureka.client.enabled", "false")
+                .withProperty("user-info.properties-datasource.password", PASSWORD);
+        when(portReader.readPort(DatabasePortEnvironmentPostProcessor.DEFAULT_URL, PASSWORD)).thenReturn(8770);
+
+        processor.postProcessEnvironment(environment, application);
+
+        verify(portReader).readPort(DatabasePortEnvironmentPostProcessor.DEFAULT_URL, PASSWORD);
+        assertThat(environment.getProperty("server.port", Integer.class)).isEqualTo(8770);
+    }
+
+    @Test
+    void neverFallsBackToCrudCredentialsWhenThePropertiesPasswordIsMissing() {
+        MockEnvironment environment = enabledEnvironment()
+                .withProperty("spring.datasource.username", "USER_INFO_SCHEMA")
+                .withProperty("spring.datasource.password", PASSWORD)
+                .withProperty("USER_INFO_DB_PASSWORD", PASSWORD);
+
+        Throwable failure = catchThrowable(() -> processor.postProcessEnvironment(environment, application));
+
+        assertSanitized(failure);
+        assertThat(failure).hasMessageContaining("EUREKA_DB_PASSWORD");
+        verifyNoInteractions(portReader);
+        assertNoDatabasePropertySource(environment);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"", " ", "USER_INFO_SCHEMA", "SYSTEM", "eureka_db", PASSWORD,
+            "${test-only-unresolved-secret}"})
+    void rejectsAnUnexpectedPropertiesDatabaseUsernameWithoutConnecting(String username) {
+        MockEnvironment environment = enabledEnvironment()
+                .withProperty("user-info.properties-datasource.username", username)
+                .withProperty("user-info.properties-datasource.password", PASSWORD);
+
+        Throwable failure = catchThrowable(() -> processor.postProcessEnvironment(environment, application));
+
+        assertSanitized(failure);
+        verifyNoInteractions(portReader);
+    }
+
+    @Test
     void databasePortOverridesTheCommandLineWithoutPublishingCredentials() {
         MockEnvironment environment = enabledEnvironment()
-                .withProperty("spring.datasource.password", PASSWORD)
+                .withProperty("user-info.properties-datasource.password", PASSWORD)
                 .withProperty("server.port", "8082")
                 .withProperty("spring.application.name", "userInfoServices")
                 .withProperty("server.servlet.context-path", "/userInfoServices");
@@ -121,7 +171,7 @@ class DatabasePortEnvironmentPostProcessorTests {
     void rejectsMissingBlankOrUnresolvedPasswordsWithoutLeakingTheirContents(String password) {
         MockEnvironment environment = enabledEnvironment();
         if (password != null) {
-            environment.withProperty("spring.datasource.password", password);
+            environment.withProperty("user-info.properties-datasource.password", password);
         }
 
         Throwable failure = catchThrowable(() -> processor.postProcessEnvironment(environment, application));
@@ -140,8 +190,8 @@ class DatabasePortEnvironmentPostProcessorTests {
     })
     void rejectsInvalidOrCredentialBearingUrlsWithoutEchoingThem(String url) {
         MockEnvironment environment = enabledEnvironment()
-                .withProperty("spring.datasource.url", url)
-                .withProperty("spring.datasource.password", PASSWORD);
+                .withProperty("user-info.properties-datasource.url", url)
+                .withProperty("user-info.properties-datasource.password", PASSWORD);
 
         Throwable failure = catchThrowable(() -> processor.postProcessEnvironment(environment, application));
 
@@ -154,7 +204,7 @@ class DatabasePortEnvironmentPostProcessorTests {
     void rejectsAnInvalidEnableFlagWithoutLeakingItsContents(String enabled) {
         MockEnvironment environment = new MockEnvironment()
                 .withProperty(PREFIX + "enabled", enabled)
-                .withProperty("spring.datasource.password", PASSWORD);
+                .withProperty("user-info.properties-datasource.password", PASSWORD);
 
         Throwable failure = catchThrowable(() -> processor.postProcessEnvironment(environment, application));
 
@@ -165,7 +215,7 @@ class DatabasePortEnvironmentPostProcessorTests {
     @Test
     void aDatabaseFailureDoesNotFallBackToTheYamlPort() {
         MockEnvironment environment = enabledEnvironment()
-                .withProperty("spring.datasource.password", PASSWORD)
+                .withProperty("user-info.properties-datasource.password", PASSWORD)
                 .withProperty("server.port", "8082");
         IllegalStateException databaseFailure = new IllegalStateException("Sanitized database lookup failure");
         when(portReader.readPort(DatabasePortEnvironmentPostProcessor.DEFAULT_URL, PASSWORD))

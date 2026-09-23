@@ -7,7 +7,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Properties;
 
-/** Reads the existing discovery-server setting using the application account's SELECT access. */
+/** Reads the existing discovery-server setting using the shared properties table's EUREKA_DB owner account. */
 class OracleEurekaPortReader {
 
     static final String PORT_QUERY = """
@@ -31,7 +31,7 @@ class OracleEurekaPortReader {
 
     int readPort(String url, String password) {
         Properties properties = new Properties();
-        properties.setProperty("user", "USER_INFO_SCHEMA");
+        properties.setProperty("user", "EUREKA_DB");
         properties.setProperty("password", password);
         properties.setProperty("oracle.net.CONNECT_TIMEOUT", "5000");
         properties.setProperty("oracle.jdbc.ReadTimeout", "10000");
@@ -49,11 +49,11 @@ class OracleEurekaPortReader {
                             "Missing EUREKA_DB.PROPERTIES row: eureka-server / jdbc / jdbc / server.port. "
                             + "Have the Eureka database owner provide this setting before startup.");
                 }
-                if (!"USER_INFO_SCHEMA".equals(rows.getString("SESSION_USER"))
-                        || !"USER_INFO_SCHEMA".equals(rows.getString("CURRENT_SCHEMA"))
+                if (!"EUREKA_DB".equals(rows.getString("SESSION_USER"))
+                        || !"EUREKA_DB".equals(rows.getString("CURRENT_SCHEMA"))
                         || !"FREEPDB1".equals(rows.getString("CON_NAME"))) {
                     throw new PortConfigurationException(
-                            "The Eureka port query must run as USER_INFO_SCHEMA in USER_INFO_SCHEMA within FREEPDB1.");
+                            "The Eureka port query must run as EUREKA_DB in EUREKA_DB within FREEPDB1.");
                 }
                 String value = rows.getString("VALUE");
                 if (rows.next()) {
@@ -66,9 +66,8 @@ class OracleEurekaPortReader {
         catch (SQLException exception) {
             // Driver messages and cleanup failures may contain secrets; expose only the numeric error code.
             throw new IllegalStateException("Cannot read the Eureka server port from EUREKA_DB.PROPERTIES "
-                    + "(database error code " + exception.getErrorCode() + "). Check the tunnel, USER_INFO_SCHEMA "
-                    + "credentials and table. Have the database owner grant USER_INFO_SCHEMA SELECT access to "
-                    + "EUREKA_DB.PROPERTIES externally.");
+                    + "(database error code " + exception.getErrorCode() + "). Check the tunnel, EUREKA_DB "
+                    + "credentials, EUREKA_DB.PROPERTIES table and FREEPDB1 PDB.");
         }
         catch (PortConfigurationException exception) {
             // Do not retain sensitive suppressed exceptions from resource cleanup.

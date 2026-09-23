@@ -20,7 +20,7 @@ public class EurekaDatabasePortEnvironmentPostProcessor implements EnvironmentPo
     static final String PROPERTY_SOURCE = "eurekaDatabaseEndpoint";
     static final String ENDPOINT_PROPERTY = "eureka.client.service-url.defaultZone";
     static final String DEFAULT_ENDPOINT = "http://localhost/eureka-server/eureka/";
-    static final String DEFAULT_DATABASE_URL = "jdbc:oracle:thin:@//127.0.0.1:11521/FREEPDB1";
+    static final String DEFAULT_DATABASE_URL = PropertiesDatabaseSettings.DEFAULT_URL;
 
     private final OracleEurekaPortReader portReader;
 
@@ -34,8 +34,6 @@ public class EurekaDatabasePortEnvironmentPostProcessor implements EnvironmentPo
 
     @Override
     public void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application) {
-        String databaseUrl;
-        String password;
         URI endpoint;
         try {
             // Disabled discovery must not inspect credentials, endpoint settings, or lookup flags.
@@ -45,8 +43,6 @@ public class EurekaDatabasePortEnvironmentPostProcessor implements EnvironmentPo
             if (!environment.getProperty(PREFIX + "enabled", Boolean.class, true)) {
                 return;
             }
-            databaseUrl = environment.getProperty("spring.datasource.url", DEFAULT_DATABASE_URL);
-            password = environment.getProperty("spring.datasource.password", "");
             // Binder observes source priority across serviceUrl and service-url spellings.
             Map<String, String> serviceUrls = Binder.get(environment)
                     .bind("eureka.client.service-url", Bindable.mapOf(String.class, String.class))
@@ -55,21 +51,14 @@ public class EurekaDatabasePortEnvironmentPostProcessor implements EnvironmentPo
         }
         catch (RuntimeException exception) {
             // Binding and placeholder exceptions can include externally supplied secrets.
-            throw new IllegalStateException("Invalid Eureka database port configuration. Resolve USER_INFO_DB_URL, "
-                    + "USER_INFO_DB_PASSWORD and EUREKA_URL, and set EUREKA_CLIENT_ENABLED and "
+            throw new IllegalStateException("Invalid Eureka discovery configuration. Resolve EUREKA_URL, "
+                    + "and set EUREKA_CLIENT_ENABLED and "
                     + "USER_INFO_EUREKA_DB_PORT_ENABLED to true or false. EUREKA_URL must be one HTTP(S) URL "
                     + "with a hostname and path, without credentials, query parameters or a fragment.");
         }
 
-        if (password.isBlank() || password.contains("${")) {
-            throw new IllegalStateException("Set USER_INFO_DB_PASSWORD before resolving the Eureka server port.");
-        }
-        if (!databaseUrl.startsWith("jdbc:oracle:thin:@") || databaseUrl.contains("${")) {
-            throw new IllegalStateException(
-                    "USER_INFO_DB_URL must be an Oracle Thin JDBC address without embedded credentials.");
-        }
-
-        int port = portReader.readPort(databaseUrl, password);
+        PropertiesDatabaseSettings database = PropertiesDatabaseSettings.load(environment);
+        int port = portReader.readPort(database.url(), database.password());
         String hostname = endpoint.getHost();
         if (hostname.indexOf(':') >= 0 && !hostname.startsWith("[")) {
             hostname = "[" + hostname + "]";

@@ -42,21 +42,21 @@ class OracleEurekaPortReaderTests {
         when(connection.prepareStatement(OracleEurekaPortReader.PORT_QUERY)).thenReturn(statement);
         when(statement.executeQuery()).thenReturn(rows);
         when(rows.next()).thenReturn(true, false);
-        when(rows.getString("SESSION_USER")).thenReturn("USER_INFO_SCHEMA");
-        when(rows.getString("CURRENT_SCHEMA")).thenReturn("USER_INFO_SCHEMA");
+        when(rows.getString("SESSION_USER")).thenReturn("EUREKA_DB");
+        when(rows.getString("CURRENT_SCHEMA")).thenReturn("EUREKA_DB");
         when(rows.getString("CON_NAME")).thenReturn("FREEPDB1");
         when(rows.getString("VALUE")).thenReturn("8760");
     }
 
     @Test
-    void readsTheExactExistingEurekaSettingUsingTheApplicationAccountAndBoundedTimeouts() throws SQLException {
+    void readsTheExactExistingEurekaSettingUsingThePropertiesAccountAndBoundedTimeouts() throws SQLException {
         assertThat(reader.readPort(URL, PASSWORD)).isEqualTo(8760);
 
         ArgumentCaptor<Properties> properties = ArgumentCaptor.forClass(Properties.class);
         verify(connections).open(eq(URL), properties.capture());
         assertThat(properties.getValue()).containsOnlyKeys(
                 "user", "password", "oracle.net.CONNECT_TIMEOUT", "oracle.jdbc.ReadTimeout");
-        assertThat(properties.getValue().getProperty("user")).isEqualTo("USER_INFO_SCHEMA");
+        assertThat(properties.getValue().getProperty("user")).isEqualTo("EUREKA_DB");
         assertThat(properties.getValue().getProperty("password")).isEqualTo(PASSWORD);
         assertThat(properties.getValue().getProperty("oracle.net.CONNECT_TIMEOUT")).isEqualTo("5000");
         assertThat(properties.getValue().getProperty("oracle.jdbc.ReadTimeout")).isEqualTo("10000");
@@ -120,14 +120,16 @@ class OracleEurekaPortReaderTests {
 
     @ParameterizedTest
     @CsvSource({
-            "EUREKA_DB, USER_INFO_SCHEMA, FREEPDB1",
-            "SYSTEM, USER_INFO_SCHEMA, FREEPDB1",
+            "USER_INFO_SCHEMA, USER_INFO_SCHEMA, FREEPDB1",
             "USER_INFO_SCHEMA, EUREKA_DB, FREEPDB1",
-            "USER_INFO_SCHEMA, SYSTEM, FREEPDB1",
-            "user_info_schema, USER_INFO_SCHEMA, FREEPDB1",
-            "USER_INFO_SCHEMA, USER_INFO_SCHEMA, CDB$ROOT",
-            "USER_INFO_SCHEMA, USER_INFO_SCHEMA, OTHERPDB",
-            "USER_INFO_SCHEMA, USER_INFO_SCHEMA, freepdb1"
+            "EUREKA_DB, USER_INFO_SCHEMA, FREEPDB1",
+            "SYSTEM, EUREKA_DB, FREEPDB1",
+            "EUREKA_DB, SYSTEM, FREEPDB1",
+            "eureka_db, EUREKA_DB, FREEPDB1",
+            "EUREKA_DB, eureka_db, FREEPDB1",
+            "EUREKA_DB, EUREKA_DB, CDB$ROOT",
+            "EUREKA_DB, EUREKA_DB, OTHERPDB",
+            "EUREKA_DB, EUREKA_DB, freepdb1"
     })
     void rejectsWrongSessionUserSchemaOrPdb(String sessionUser, String schema, String pdb) throws SQLException {
         when(rows.getString("SESSION_USER")).thenReturn(sessionUser);
@@ -137,7 +139,7 @@ class OracleEurekaPortReaderTests {
         Throwable failure = catchThrowable(() -> reader.readPort(URL, PASSWORD));
 
         assertSanitized(failure);
-        assertThat(failure).hasMessageContaining("USER_INFO_SCHEMA in USER_INFO_SCHEMA within FREEPDB1");
+        assertThat(failure).hasMessageContaining("EUREKA_DB in EUREKA_DB within FREEPDB1");
         assertAllJdbcResourcesClosed();
     }
 
@@ -172,14 +174,16 @@ class OracleEurekaPortReaderTests {
 
     @ParameterizedTest
     @ValueSource(ints = {942, 1031})
-    void missingTableOrSelectAccessReportsExternalSetupWithoutExposingJdbcDetails(int errorCode) throws SQLException {
+    void missingTableOrAccessReportsPropertiesDatabaseSetupWithoutExposingJdbcDetails(int errorCode) throws SQLException {
         when(statement.executeQuery()).thenThrow(sensitiveSqlException(errorCode));
 
         Throwable failure = catchThrowable(() -> reader.readPort(URL, PASSWORD));
 
         assertSanitized(failure);
         assertThat(failure).hasMessageContaining(Integer.toString(errorCode))
-                .hasMessageContaining("grant USER_INFO_SCHEMA SELECT access to EUREKA_DB.PROPERTIES externally");
+                .hasMessageContaining("EUREKA_DB credentials")
+                .hasMessageContaining("EUREKA_DB.PROPERTIES table and FREEPDB1 PDB")
+                .hasMessageNotContaining("grant USER_INFO_SCHEMA");
         verify(statement).close();
         verify(connection).close();
     }

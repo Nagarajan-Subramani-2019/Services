@@ -1,4 +1,5 @@
--- Run manually as USER_INFO_SCHEMA in FREEPDB1 after creating PROPERTIES.
+-- Run manually as EUREKA_DB in FREEPDB1 against the existing shared PROPERTIES table.
+-- EUREKA_DB.PROPERTIES is created by the Eureka service's database scripts.
 -- Applies the requested userInfoServices port 8770.
 -- Re-running updates this exact application's server.port row; review before execution.
 
@@ -8,19 +9,7 @@ SET DEFINE OFF
 WHENEVER OSERROR EXIT FAILURE ROLLBACK
 WHENEVER SQLERROR EXIT SQL.SQLCODE ROLLBACK
 
-BEGIN
-    IF SYS_CONTEXT('USERENV', 'SESSION_USER') <> 'USER_INFO_SCHEMA'
-       OR SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA') <> 'USER_INFO_SCHEMA'
-       OR SYS_CONTEXT('USERENV', 'CON_NAME') <> 'FREEPDB1' THEN
-        RAISE_APPLICATION_ERROR(
-            -20001,
-            'Connect as USER_INFO_SCHEMA with current schema USER_INFO_SCHEMA in FREEPDB1.'
-        );
-    END IF;
-END;
-/
-
-MERGE INTO USER_INFO_SCHEMA.PROPERTIES target
+MERGE INTO EUREKA_DB.PROPERTIES target
 USING (
     SELECT 'userInfoServices' AS application,
            'jdbc' AS profile,

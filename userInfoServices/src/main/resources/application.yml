@@ -21,6 +21,12 @@ spring:
       mode: never
 
 user-info:
+  # Separate owner connection for shared configuration, not for user records.
+  # Opened briefly by the port lookups before the application datasource starts.
+  properties-datasource:
+    url: ${EUREKA_DB_URL:jdbc:oracle:thin:@//127.0.0.1:11521/FREEPDB1}
+    username: EUREKA_DB
+    password: ${EUREKA_DB_PASSWORD:welcome1}
   database-port:
     enabled: ${USER_INFO_DB_PORT_ENABLED:false}
   eureka:

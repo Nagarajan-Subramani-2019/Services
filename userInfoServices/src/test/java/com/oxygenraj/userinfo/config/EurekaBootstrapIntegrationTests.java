@@ -17,6 +17,7 @@ import org.springframework.context.ConfigurableApplicationContext;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
@@ -33,8 +34,10 @@ class EurekaBootstrapIntegrationTests {
             driver.when(() -> DriverManager.getConnection(eq(JDBC), any(Properties.class)))
                     .thenReturn(own, discovery);
             try (ConfigurableApplicationContext context = application().run(
-                    "--spring.datasource.url=" + JDBC,
-                    "--spring.datasource.password=test-only-password",
+                    "--EUREKA_DB_URL=" + JDBC,
+                    "--EUREKA_DB_PASSWORD=test-only-properties-password",
+                    "--spring.datasource.url=jdbc:oracle:thin:@//crud.example.test:1521/FREEPDB1",
+                    "--spring.datasource.password=test-only-crud-password",
                     "--user-info.database-port.enabled=true",
                     "--eureka.client.enabled=true",
                     "--user-info.eureka.database-port.enabled=true",
@@ -50,23 +53,29 @@ class EurekaBootstrapIntegrationTests {
                         .containsExactly("http://discovery.example.test:8760/eureka-server/eureka/");
                 assertThat(client.isRegisterWithEureka()).isTrue();
                 assertThat(client.isFetchRegistry()).isTrue();
+                assertCrudConfigurationUnchanged(context);
             }
-            driver.verify(() -> DriverManager.getConnection(eq(JDBC), any(Properties.class)), times(2));
+            driver.verify(() -> DriverManager.getConnection(eq(JDBC), argThat(properties ->
+                    "EUREKA_DB".equals(properties.getProperty("user"))
+                    && "test-only-properties-password".equals(properties.getProperty("password")))), times(2));
+            driver.verifyNoMoreInteractions();
         }
         verify(own).close();
         verify(discovery).close();
     }
 
     @Test
-    void defaultYamlOwnPortIs8770WhileEurekaUsesTheDatabaseValue() throws Exception {
+    void yamlOwnPortIs8770WhileEurekaUsesItsDedicatedDatabaseCredentials() throws Exception {
         Connection discovery = connection(OracleEurekaPortReader.PORT_QUERY, "8877");
         Class.forName("oracle.jdbc.OracleDriver");
         try (MockedStatic<DriverManager> driver = mockStatic(DriverManager.class)) {
             driver.when(() -> DriverManager.getConnection(eq(JDBC), any(Properties.class)))
                     .thenReturn(discovery);
             try (ConfigurableApplicationContext context = application().run(
-                    "--spring.datasource.url=" + JDBC,
-                    "--spring.datasource.password=test-only-password",
+                    "--EUREKA_DB_URL=" + JDBC,
+                    "--EUREKA_DB_PASSWORD=test-only-properties-password",
+                    "--spring.datasource.url=jdbc:oracle:thin:@//crud.example.test:1521/FREEPDB1",
+                    "--spring.datasource.password=test-only-crud-password",
                     "--user-info.database-port.enabled=false",
                     "--USER_INFO_PORT=8770",
                     "--eureka.client.enabled=true",
@@ -78,8 +87,12 @@ class EurekaBootstrapIntegrationTests {
                         .bind("eureka.client", Bindable.of(EurekaClientConfigBean.class)).get();
                 assertThat(client.getEurekaServerServiceUrls("defaultZone"))
                         .containsExactly("https://discovery.example.test:8877/eureka-server/eureka/");
+                assertCrudConfigurationUnchanged(context);
             }
-            driver.verify(() -> DriverManager.getConnection(eq(JDBC), any(Properties.class)), times(1));
+            driver.verify(() -> DriverManager.getConnection(eq(JDBC), argThat(properties ->
+                    "EUREKA_DB".equals(properties.getProperty("user"))
+                    && "test-only-properties-password".equals(properties.getProperty("password")))), times(1));
+            driver.verifyNoMoreInteractions();
         }
     }
 
@@ -91,8 +104,8 @@ class EurekaBootstrapIntegrationTests {
         when(statement.executeQuery()).thenReturn(rows);
         when(rows.next()).thenReturn(true, false);
         when(rows.getString("VALUE")).thenReturn(port);
-        when(rows.getString("SESSION_USER")).thenReturn("USER_INFO_SCHEMA");
-        when(rows.getString("CURRENT_SCHEMA")).thenReturn("USER_INFO_SCHEMA");
+        when(rows.getString("SESSION_USER")).thenReturn("EUREKA_DB");
+        when(rows.getString("CURRENT_SCHEMA")).thenReturn("EUREKA_DB");
         when(rows.getString("CON_NAME")).thenReturn("FREEPDB1");
         return connection;
     }
@@ -102,6 +115,17 @@ class EurekaBootstrapIntegrationTests {
         application.setWebApplicationType(WebApplicationType.NONE);
         application.setRegisterShutdownHook(false);
         return application;
+    }
+
+    private static void assertCrudConfigurationUnchanged(ConfigurableApplicationContext context) {
+        assertThat(context.getEnvironment().getProperty("spring.datasource.username"))
+                .isEqualTo("USER_INFO_SCHEMA");
+        assertThat(context.getEnvironment().getProperty("spring.datasource.url"))
+                .isEqualTo("jdbc:oracle:thin:@//crud.example.test:1521/FREEPDB1");
+        assertThat(context.getEnvironment().getProperty("spring.datasource.password"))
+                .isEqualTo("test-only-crud-password");
+        assertThat(context.getEnvironment().getProperty("user-info.properties-datasource.username"))
+                .isEqualTo("EUREKA_DB");
     }
 
     @TestConfiguration(proxyBeanMethods = false)

@@ -7,14 +7,15 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Properties;
 
-/** Performs one bounded, read-only startup lookup without changing schema objects. */
+/** Reads this service's port from the shared properties table using its EUREKA_DB owner account. */
 class OraclePortReader {
 
     static final String PORT_QUERY = """
             SELECT "VALUE",
                    SYS_CONTEXT('USERENV', 'SESSION_USER') AS SESSION_USER,
-                   SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA') AS CURRENT_SCHEMA
-              FROM USER_INFO_SCHEMA.PROPERTIES
+                   SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA') AS CURRENT_SCHEMA,
+                   SYS_CONTEXT('USERENV', 'CON_NAME') AS CON_NAME
+              FROM EUREKA_DB.PROPERTIES
              WHERE APPLICATION = ? AND PROFILE = ? AND LABEL = ? AND "KEY" = ?
             """;
 
@@ -30,7 +31,7 @@ class OraclePortReader {
 
     int readPort(String url, String password) {
         Properties properties = new Properties();
-        properties.setProperty("user", "USER_INFO_SCHEMA");
+        properties.setProperty("user", "EUREKA_DB");
         properties.setProperty("password", password);
         properties.setProperty("oracle.net.CONNECT_TIMEOUT", "5000");
         properties.setProperty("oracle.jdbc.ReadTimeout", "10000");
@@ -45,13 +46,14 @@ class OraclePortReader {
             try (ResultSet rows = statement.executeQuery()) {
                 if (!rows.next()) {
                     throw new PortConfigurationException(
-                            "Missing USER_INFO_SCHEMA.PROPERTIES row: userInfoServices / jdbc / jdbc / server.port. "
-                            + "Run the supplied database scripts before starting userInfoServices.");
+                            "Missing EUREKA_DB.PROPERTIES row: userInfoServices / jdbc / jdbc / server.port. "
+                            + "Have the Eureka database owner provide this service setting before startup.");
                 }
-                if (!"USER_INFO_SCHEMA".equals(rows.getString("SESSION_USER"))
-                        || !"USER_INFO_SCHEMA".equals(rows.getString("CURRENT_SCHEMA"))) {
+                if (!"EUREKA_DB".equals(rows.getString("SESSION_USER"))
+                        || !"EUREKA_DB".equals(rows.getString("CURRENT_SCHEMA"))
+                        || !"FREEPDB1".equals(rows.getString("CON_NAME"))) {
                     throw new PortConfigurationException(
-                            "The startup port query must run as USER_INFO_SCHEMA in USER_INFO_SCHEMA.");
+                            "The startup port query must run as EUREKA_DB in EUREKA_DB within FREEPDB1.");
                 }
                 String value = rows.getString("VALUE");
                 if (rows.next()) {
@@ -64,8 +66,9 @@ class OraclePortReader {
         catch (SQLException exception) {
             // JDBC messages can disclose credentials, so retain neither cause nor suppressed exceptions.
             throw new IllegalStateException(
-                    "Cannot read the startup port from USER_INFO_SCHEMA.PROPERTIES (database error code "
-                    + exception.getErrorCode() + "). Check the tunnel, database credentials, table and SELECT access.");
+                    "Cannot read the startup port from EUREKA_DB.PROPERTIES (database error code "
+                    + exception.getErrorCode() + "). Check the tunnel, EUREKA_DB credentials, "
+                    + "EUREKA_DB.PROPERTIES table and FREEPDB1 PDB.");
         }
         catch (PortConfigurationException exception) {
             // Resource cleanup can attach sensitive suppressed JDBC exceptions to validation failures.
@@ -97,7 +100,7 @@ class OraclePortReader {
 
     private static PortConfigurationException invalidPort() {
         return new PortConfigurationException(
-                "USER_INFO_SCHEMA.PROPERTIES server.port must be an integer from 1 to 65535.");
+                "EUREKA_DB.PROPERTIES server.port must be an integer from 1 to 65535.");
     }
 
     private static final class PortConfigurationException extends IllegalStateException {

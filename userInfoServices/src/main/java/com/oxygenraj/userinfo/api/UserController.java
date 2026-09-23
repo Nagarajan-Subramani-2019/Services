@@ -31,6 +31,7 @@ public class UserController {
         return ResponseEntity.created(location).body(user);
     }
 
+
     @GetMapping("/userdetails")
     public UserPage list(@RequestParam(defaultValue = "0") @Min(0) @Max(1000000) int page,
                          @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
@@ -38,8 +39,8 @@ public class UserController {
     }
 
     @GetMapping("/userdetails/{id}")
-    public UserResponse get(@PathVariable @Positive long id, Authentication authentication) {
-        return service.get(id, authentication);
+    public UserResponse get(@PathVariable @Positive long id) {
+        return service.get(id);
     }
 
     @PostMapping(value = "/authuserdetails", consumes = MediaType.APPLICATION_JSON_VALUE)
