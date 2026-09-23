@@ -1,0 +1,403 @@
+[
+  {
+    "file": "C:\\Users\\NagarajanSubramani\\Desktop\\main_final\\userinfo-scratchpad\\01-folders-and-build.png",
+    "width": 3000,
+    "height": 4255,
+    "text_blocks": 80,
+    "boxes": [
+      {
+        "title": "userInfoServices/",
+        "rect": [
+          750,
+          210,
+          2250,
+          498
+        ]
+      },
+      {
+        "title": "src/main/java/com/oxygenraj/userinfo/",
+        "rect": [
+          170,
+          613,
+          1450,
+          1429
+        ]
+      },
+      {
+        "title": "src/main/resources/",
+        "rect": [
+          1550,
+          613,
+          2830,
+          1363
+        ]
+      },
+      {
+        "title": "db/  \u2192  schema-organized SQL",
+        "rect": [
+          170,
+          1504,
+          1450,
+          2122
+        ]
+      },
+      {
+        "title": "project root  \u2192  build controls",
+        "rect": [
+          1550,
+          1504,
+          2830,
+          2188
+        ]
+      },
+      {
+        "title": "Java + resources \u2192 bootWar",
+        "rect": [
+          170,
+          2341,
+          1450,
+          2893
+        ]
+      },
+      {
+        "title": "db/**/*.sql \u2192 dbZip",
+        "rect": [
+          1550,
+          2341,
+          2830,
+          2893
+        ]
+      },
+      {
+        "title": "tests + verifyArtifacts \u2192 build result",
+        "rect": [
+          680,
+          2988,
+          2320,
+          3276
+        ]
+      },
+      {
+        "title": "dependencies \u2192 their jobs",
+        "rect": [
+          170,
+          3346,
+          1450,
+          4030
+        ]
+      },
+      {
+        "title": "build/ \u2192 generated, not source",
+        "rect": [
+          1550,
+          3346,
+          2830,
+          4030
+        ]
+      }
+    ]
+  },
+  {
+    "file": "C:\\Users\\NagarajanSubramani\\Desktop\\main_final\\userinfo-scratchpad\\02-api-files.png",
+    "width": 3000,
+    "height": 4294,
+    "text_blocks": 79,
+    "boxes": [
+      {
+        "title": "UserController.java  (@RestController)",
+        "rect": [
+          570,
+          210,
+          2430,
+          630
+        ]
+      },
+      {
+        "title": "routes \u2192 operations",
+        "rect": [
+          170,
+          745,
+          1450,
+          1429
+        ]
+      },
+      {
+        "title": "annotations \u2192 meaning",
+        "rect": [
+          1550,
+          745,
+          2830,
+          1363
+        ]
+      },
+      {
+        "title": "CreateUserRequest.java",
+        "rect": [
+          170,
+          1504,
+          1450,
+          2188
+        ]
+      },
+      {
+        "title": "ValidPassword.java",
+        "rect": [
+          1550,
+          1504,
+          2830,
+          2254
+        ]
+      },
+      {
+        "title": "AuthenticateRequest.java",
+        "rect": [
+          170,
+          2329,
+          1450,
+          2881
+        ]
+      },
+      {
+        "title": "UserResponse.java",
+        "rect": [
+          1550,
+          2329,
+          2830,
+          2815
+        ]
+      },
+      {
+        "title": "UserPage.java",
+        "rect": [
+          170,
+          2956,
+          1450,
+          3640
+        ]
+      },
+      {
+        "title": "ApiExceptionHandler.java",
+        "rect": [
+          1550,
+          2956,
+          2830,
+          3640
+        ]
+      },
+      {
+        "title": "two different error boundaries",
+        "rect": [
+          170,
+          3715,
+          2830,
+          4069
+        ]
+      }
+    ]
+  },
+  {
+    "file": "C:\\Users\\NagarajanSubramani\\Desktop\\main_final\\userinfo-scratchpad\\03-request-and-security-flow.png",
+    "width": 3000,
+    "height": 4527,
+    "text_blocks": 80,
+    "boxes": [
+      {
+        "title": "POST /userInfoServices/userdetails  \u2192  illustrative request",
+        "rect": [
+          170,
+          210,
+          2830,
+          498
+        ]
+      },
+      {
+        "title": "UserService.java \u2192 create()",
+        "rect": [
+          170,
+          593,
+          1450,
+          1145
+        ]
+      },
+      {
+        "title": "UserRepository.java \u2192 create()",
+        "rect": [
+          1550,
+          593,
+          2830,
+          1145
+        ]
+      },
+      {
+        "title": "database row \u2192 domain/UserAccount.java \u2192 toResponse()",
+        "rect": [
+          540,
+          1240,
+          2460,
+          1660
+        ]
+      },
+      {
+        "title": "GET /userdetails?page=0&size=20",
+        "rect": [
+          170,
+          1735,
+          1450,
+          2353
+        ]
+      },
+      {
+        "title": "GET /userdetails/{id}",
+        "rect": [
+          1550,
+          1735,
+          2830,
+          2353
+        ]
+      },
+      {
+        "title": "AuthenticationManager \u2192 provider",
+        "rect": [
+          170,
+          2501,
+          1450,
+          3119
+        ]
+      },
+      {
+        "title": "SecurityConfiguration.java",
+        "rect": [
+          1550,
+          2501,
+          2830,
+          3119
+        ]
+      },
+      {
+        "title": "access rules \u2192 before controller",
+        "rect": [
+          170,
+          3194,
+          1450,
+          3878
+        ]
+      },
+      {
+        "title": "USER_INFO_SCHEMA.USER_DETAILS",
+        "rect": [
+          1550,
+          3194,
+          2830,
+          3878
+        ]
+      },
+      {
+        "title": "what is NOT implemented",
+        "rect": [
+          170,
+          3948,
+          2830,
+          4302
+        ]
+      }
+    ]
+  },
+  {
+    "file": "C:\\Users\\NagarajanSubramani\\Desktop\\main_final\\userinfo-scratchpad\\04-startup-databases-and-ports.png",
+    "width": 3000,
+    "height": 4264,
+    "text_blocks": 79,
+    "boxes": [
+      {
+        "title": "java -jar userInfoServices.war",
+        "rect": [
+          470,
+          210,
+          2530,
+          564
+        ]
+      },
+      {
+        "title": "user-info.properties-datasource",
+        "rect": [
+          170,
+          679,
+          1450,
+          1297
+        ]
+      },
+      {
+        "title": "spring.datasource",
+        "rect": [
+          1550,
+          679,
+          2830,
+          1297
+        ]
+      },
+      {
+        "title": "default address for BOTH connections",
+        "rect": [
+          170,
+          1362,
+          2830,
+          1716
+        ]
+      },
+      {
+        "title": "DatabasePortEnvironmentPostProcessor.java",
+        "rect": [
+          170,
+          1791,
+          1450,
+          2475
+        ]
+      },
+      {
+        "title": "EurekaDatabasePortEnvironmentPostProcessor.java",
+        "rect": [
+          1550,
+          1791,
+          2830,
+          2475
+        ]
+      },
+      {
+        "title": "OraclePortReader.java + OracleEurekaPortReader.java",
+        "rect": [
+          170,
+          2550,
+          1450,
+          3168
+        ]
+      },
+      {
+        "title": "DatabaseReadiness.java + SecurityConfiguration.java",
+        "rect": [
+          1550,
+          2550,
+          2830,
+          3168
+        ]
+      },
+      {
+        "title": "separate SQL ZIP \u2192 manual deployment",
+        "rect": [
+          170,
+          3243,
+          1450,
+          3927
+        ]
+      },
+      {
+        "title": "switches + boundaries to remember",
+        "rect": [
+          1550,
+          3243,
+          2830,
+          4039
+        ]
+      }
+    ]
+  }
+]
