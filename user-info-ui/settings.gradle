@@ -1,1 +1,3 @@
 rootProject.name = 'user-info-ui'
+include ':ui-platform-core'
+project(':ui-platform-core').projectDir = file('../ui-platform-core')

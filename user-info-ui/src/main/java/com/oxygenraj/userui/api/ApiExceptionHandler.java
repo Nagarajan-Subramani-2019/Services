@@ -1,6 +1,7 @@
 package com.oxygenraj.userui.api;
 
 import com.oxygenraj.userui.client.UpstreamFailure;
+import com.oxygenraj.uiplatform.UiPlatformException;
 import jakarta.validation.ConstraintViolationException;
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -8,6 +9,7 @@ import java.util.Map;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
@@ -24,13 +26,19 @@ public class ApiExceptionHandler {
     }
 
     @ExceptionHandler({ConstraintViolationException.class, HandlerMethodValidationException.class,
-            MethodArgumentTypeMismatchException.class, HttpMessageNotReadableException.class})
+            MethodArgumentTypeMismatchException.class, HttpMessageNotReadableException.class,
+            MissingServletRequestParameterException.class})
     public ResponseEntity<ApiError> invalidRequest(Exception exception) {
         return error(400, "INVALID_REQUEST", "Use valid JSON and a positive user ID.");
     }
 
     @ExceptionHandler(UpstreamFailure.class)
     public ResponseEntity<ApiError> upstream(UpstreamFailure exception) {
+        return error(exception.status(), exception.code(), exception.getMessage());
+    }
+
+    @ExceptionHandler(UiPlatformException.class)
+    public ResponseEntity<ApiError> platform(UiPlatformException exception) {
         return error(exception.status(), exception.code(), exception.getMessage());
     }
 

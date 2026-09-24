@@ -1,5 +1,8 @@
 package com.oxygenraj.userui;
 
+import com.oxygenraj.uiplatform.UiPlatform;
+import com.oxygenraj.uiplatform.IssuedSession;
+import java.time.Instant;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -21,9 +24,11 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import tools.jackson.databind.ObjectMapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.when;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
         "server.address=127.0.0.1", "server.servlet.context-path=/user-info-ui",
@@ -33,6 +38,7 @@ class UserInfoUiHttpIntegrationTest {
     private static final StubUserInfoServer UPSTREAM = new StubUserInfoServer();
     @LocalServerPort private int port;
     @Autowired private ObjectMapper json;
+    @MockitoBean private UiPlatform platform;
     private HttpClient http;
 
     @DynamicPropertySource
@@ -42,6 +48,8 @@ class UserInfoUiHttpIntegrationTest {
 
     @BeforeEach void resetFixture() {
         UPSTREAM.reset();
+        when(platform.issueSession(17L, "sample.user"))
+                .thenReturn(new IssuedSession("synthetic-test-session", Instant.parse("2030-01-01T01:00:00Z")));
         http = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NEVER)
                 .connectTimeout(Duration.ofSeconds(3)).build();
     }
@@ -80,6 +88,8 @@ class UserInfoUiHttpIntegrationTest {
         assertThat(response.statusCode()).isEqualTo(200);
         assertThat(json.readTree(response.body()).get("authenticated").asBoolean()).isTrue();
         assertThat(json.readTree(response.body()).get("user").get("id").asLong()).isEqualTo(17);
+        assertThat(json.readTree(response.body()).get("accessToken").asString()).isEqualTo("synthetic-test-session");
+        assertThat(json.readTree(response.body()).get("expiresAt").asString()).isEqualTo("2030-01-01T01:00:00Z");
         assertNoSecrets(response);
         assertThat(response.body()).doesNotContain("\"password\":");
         assertThat(response.headers().allValues("Set-Cookie")).isEmpty();

@@ -50,19 +50,27 @@
         <div class="access-footnote"><span aria-hidden="true">◇</span><span>Account details are handled by userInfoServices.<br>This app does not save passwords in browser storage.</span></div>
       </section>
 
+      <section id="signed-in-shell" class="signed-in-shell" aria-label="Workspace" hidden>
+        <header class="signed-in-top"><span id="session-name"></span><div class="account-actions"><button id="account-button" class="text-button" type="button">Account</button><button id="sign-out" class="text-button" type="button">Sign out</button></div></header>
+        <div class="workspace-layout">
+          <nav class="workspace-navigation" aria-label="Workspace navigation"><p class="navigation-heading">Workspace</p><div id="workspace-menu" class="workspace-menu"></div><p id="menu-message" class="menu-message" role="status" aria-live="polite"></p><button id="retry-menu" class="text-button" type="button" hidden>Retry menu</button></nav>
+          <div class="workspace-content">
       <section id="profile-view" class="profile-view" aria-labelledby="welcome-title" hidden>
-        <div class="profile-topline"><span class="section-number">02 / YOUR SPACE</span><button id="sign-out" class="text-button" type="button">Sign out <span aria-hidden="true">↗</span></button></div>
-        <div class="welcome-icon" aria-hidden="true">✳</div>
-        <span class="welcome-kicker">A LITTLE HI. A BIG HELLO.</span>
+        <div class="profile-topline"><span class="section-number">YOUR ACCOUNT</span></div>
         <h2 id="welcome-title" tabindex="-1">Hello, <span id="welcome-name"></span><span class="teal-period">.</span></h2>
-        <p class="welcome-description">It’s good to have you here.<br>Your profile is connected and ready.</p>
+        <p class="welcome-description">Your account details.</p>
         <div class="profile-card">
           <div class="profile-card-heading"><h3>Your details</h3><span id="profile-status" class="status-badge">Active</span></div>
           <dl class="profile-details"><div><dt>Username</dt><dd id="profile-username"></dd></div><div><dt>Email</dt><dd id="profile-email"></dd></div><div><dt>Phone</dt><dd id="profile-phone"></dd></div><div><dt>Account ID</dt><dd id="profile-id"></dd></div><div><dt>Role</dt><dd id="profile-role"></dd></div><div><dt>Joined</dt><dd id="profile-created"></dd></div></dl>
           <div class="profile-card-footer"><span id="profile-updated" role="status" aria-live="polite">Loaded from userInfoServices</span><button id="refresh-profile" class="text-button" type="button">Refresh <span aria-hidden="true">↻</span></button></div>
         </div>
         <p id="profile-error" class="form-error" role="alert" hidden></p>
-        <p class="session-note">This preview checks your credentials; it does not create a persistent login session. Sign out clears this screen. Profile reads are currently public; entitlement will be added separately.</p>
+        <p class="session-note">Your session stays in this tab. Sign out when you finish.</p>
+      </section>
+            <section id="component-view" class="component-view" aria-label="Selected workspace screen" hidden></section>
+            <p id="component-error" class="form-error" role="alert" hidden></p><button id="retry-component" class="text-button" type="button" hidden>Retry screen</button>
+          </div>
+        </div>
       </section>
       <footer class="workspace-footer"><span>A simple beginning. A connected future.</span><span aria-hidden="true">✳</span></footer>
     </main>

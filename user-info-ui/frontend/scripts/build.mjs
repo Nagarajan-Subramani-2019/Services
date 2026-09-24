@@ -11,7 +11,7 @@ const resolvedDestination = await realpath(destination);
 if (resolvedDestination !== destination || !resolvedDestination.startsWith(root + sep)) {
   throw new Error('Refusing to write outside the frontend/dist directory.');
 }
-const files = ['index.html', 'styles.css', 'app.js', 'api.js', 'validation.js'];
+const files = ['index.html', 'styles.css', 'app.js', 'api.js', 'validation.js', 'components.js'];
 for (const name of files) {
   const target = join(destination, name);
   // Reject an existing symlink target rather than following it outside dist.

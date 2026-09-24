@@ -1,13 +1,11 @@
-# No database changes required
+# No user-data migration
 
-This UI calls the existing `userInfoServices` REST endpoints. It never connects
-to Oracle directly and does not create a second copy of user data.
+User details remain owned by userInfoServices and USER_INFO_SCHEMA.USER_DETAILS.
+This UI reads and creates business users through that service, not direct SQL.
 
-The existing `USER_INFO_SCHEMA.USER_DETAILS` table already supports registration,
-credential verification and profile retrieval. No additional table, CREATE USER,
-GRANT or SQL migration is needed for this UI, so no empty database ZIP is emitted.
+Shared UI registration, entitlements and sessions now belong to UI_DATA_SCHEMA.
+Their DDL is in the sibling db/UI_DATA_SCHEMA folder and the UI database ZIP.
+Component-specific seed rows ship with each component's own ZIP.
 
-If a later UI feature genuinely needs persistence, implement its database changes
-through the owning backend service and place any user-data migration in
-`USER_INFO_SCHEMA`. Shared `EUREKA_DB.PROPERTIES` remains owned by the existing
-Eureka/configuration setup. Do not store database passwords in frontend assets.
+EUREKA_DB.PROPERTIES remains owned by the existing discovery/configuration setup.
+Never store database passwords in frontend assets.

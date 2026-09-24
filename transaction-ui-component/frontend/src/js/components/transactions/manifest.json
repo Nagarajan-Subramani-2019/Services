@@ -1,0 +1,15 @@
+{
+  "name": "transaction-ui-component",
+  "version": "1.0.0",
+  "componentCode": "transactions",
+  "componentServerName": "transaction-ui-component",
+  "resourceBasePath": "/js/components/transactions",
+  "host": "user-info-ui",
+  "viewKey": "transactions",
+  "uiActivityCode": "UI_TRANSACTIONS",
+  "functionalActivityCodes": ["TXN_USERS_READ", "TXN_LIST_READ"],
+  "entry": "loader.js",
+  "stylesheet": "styles.css",
+  "description": "Read-only user selection and paginated transaction list",
+  "mountContract": "mount(container, { request, onUnauthorized }) returns cleanup"
+}

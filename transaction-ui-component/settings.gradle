@@ -1,0 +1,3 @@
+rootProject.name = 'transaction-ui-component'
+include ':ui-platform-core'
+project(':ui-platform-core').projectDir = file('../ui-platform-core')

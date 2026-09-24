@@ -1,0 +1,3 @@
+org.springframework.boot.EnvironmentPostProcessor=\
+com.oxygenraj.transact.config.DatabasePortEnvironmentPostProcessor,\
+com.oxygenraj.transact.config.EurekaDatabasePortEnvironmentPostProcessor

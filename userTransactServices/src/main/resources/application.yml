@@ -1,0 +1,90 @@
+spring:
+  application:
+    name: userTransactServices
+  datasource:
+    url: ${USER_TRANSACT_DB_URL:jdbc:oracle:thin:@//127.0.0.1:11521/FREEPDB1}
+    username: USER_TRANSACT_SCHEMA
+    password: ${USER_TRANSACT_DB_PASSWORD:welcome1}
+    driver-class-name: oracle.jdbc.OracleDriver
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 1
+      connection-timeout: 10000
+      data-source-properties:
+        "[oracle.net.CONNECT_TIMEOUT]": 5000
+        "[oracle.jdbc.ReadTimeout]": 10000
+  jdbc:
+    template:
+      query-timeout: 5s
+  jackson:
+    deserialization:
+      accept-float-as-int: false
+      fail-on-unknown-properties: true
+  sql:
+    init:
+      mode: never
+
+user-transact:
+  # The shared properties account is used only for short-lived startup reads.
+  # Neither configuration lookup uses the transaction datasource credentials.
+  properties-datasource:
+    url: ${EUREKA_DB_URL:jdbc:oracle:thin:@//127.0.0.1:11521/FREEPDB1}
+    username: EUREKA_DB
+    password: ${EUREKA_DB_PASSWORD:welcome1}
+  database-port:
+    enabled: ${USER_TRANSACT_DB_PORT_ENABLED:false}
+  database-check:
+    enabled: ${USER_TRANSACT_DB_CHECK_ENABLED:true}
+  eureka:
+    database-port:
+      enabled: ${USER_TRANSACT_EUREKA_DB_PORT_ENABLED:true}
+  # App base URL including its context path; omit the trailing slash.
+  public-url: ${USER_TRANSACT_PUBLIC_URL:http://${eureka.instance.hostname}:${eureka.instance.non-secure-port}${server.servlet.context-path}}
+
+server:
+  address: ${USER_TRANSACT_BIND_ADDRESS:127.0.0.1}
+  # An external Tomcat connector controls the listening port when deploying a WAR.
+  port: ${USER_TRANSACT_PORT:8781}
+  servlet:
+    context-path: /userTransactServices
+  shutdown: graceful
+  error:
+    include-message: never
+    include-binding-errors: never
+    include-stacktrace: never
+    include-exception: false
+
+eureka:
+  client:
+    enabled: ${EUREKA_CLIENT_ENABLED:true}
+    register-with-eureka: true
+    fetch-registry: true
+    service-url:
+      # Only this endpoint's port is replaced by the shared eureka-server row.
+      defaultZone: ${EUREKA_URL:http://localhost/eureka-server/eureka/}
+  instance:
+    hostname: ${USER_TRANSACT_HOSTNAME:localhost}
+    prefer-ip-address: false
+    # Set to the Tomcat connector or externally reachable port when appropriate.
+    non-secure-port: ${USER_TRANSACT_ADVERTISED_PORT:${server.port}}
+    instance-id: ${spring.application.name}:${eureka.instance.hostname}:${eureka.instance.non-secure-port}
+    home-page-url-path: ${server.servlet.context-path}/
+    status-page-url-path: ${server.servlet.context-path}/actuator/health
+    health-check-url-path: ${server.servlet.context-path}/actuator/health
+    home-page-url: ${user-transact.public-url}/
+    status-page-url: ${user-transact.public-url}/actuator/health
+    health-check-url: ${user-transact.public-url}/actuator/health
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+      show-components: never
+
+logging:
+  level:
+    root: INFO

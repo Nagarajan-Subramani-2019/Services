@@ -1,0 +1,58 @@
+spring:
+  application:
+    name: transaction-ui-component
+  sql:
+    init:
+      mode: never
+  autoconfigure:
+    exclude: org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
+server:
+  address: ${TRANSACTION_UI_BIND_ADDRESS:127.0.0.1}
+  port: ${TRANSACTION_UI_PORT:8782}
+  servlet:
+    context-path: /transaction-ui-component
+  shutdown: graceful
+  error:
+    include-message: never
+    include-stacktrace: never
+ui:
+  platform:
+    jdbc-url: ${UI_DATA_DB_URL:jdbc:oracle:thin:@//127.0.0.1:11521/FREEPDB1}
+    username: UI_DATA_SCHEMA
+    password: ${UI_DATA_DB_PASSWORD:}
+component:
+  backends:
+    users:
+      mode: ${USER_INFO_CONNECTION_MODE:direct}
+      base-url: ${USER_INFO_BASE_URL:http://127.0.0.1:8771/userInfoServices}
+      service-id: userInfoServices
+      context-path: /userInfoServices
+    transactions:
+      mode: ${USER_TRANSACT_CONNECTION_MODE:direct}
+      base-url: ${USER_TRANSACT_BASE_URL:http://127.0.0.1:8781/userTransactServices}
+      service-id: userTransactServices
+      context-path: /userTransactServices
+  public-url: ${TRANSACTION_UI_PUBLIC_URL:http://${eureka.instance.hostname}:${eureka.instance.non-secure-port}${server.servlet.context-path}}
+eureka:
+  client:
+    enabled: ${EUREKA_CLIENT_ENABLED:true}
+    register-with-eureka: true
+    fetch-registry: true
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8760/eureka-server/eureka/}
+  instance:
+    hostname: ${TRANSACTION_UI_HOSTNAME:localhost}
+    non-secure-port: ${TRANSACTION_UI_ADVERTISED_PORT:${server.port}}
+    instance-id: ${spring.application.name}:${eureka.instance.hostname}:${eureka.instance.non-secure-port}
+    home-page-url: ${component.public-url}/
+    health-check-url: ${component.public-url}/actuator/health
+    status-page-url: ${component.public-url}/actuator/health
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+      show-components: never

@@ -16,6 +16,8 @@ dependencyManagement {
 }
 
 dependencies {
+    implementation project(':ui-platform-core')
+    runtimeOnly 'com.oracle.database.jdbc:ojdbc17'
     implementation 'org.springframework.boot:spring-boot-starter-webmvc'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
@@ -25,6 +27,7 @@ dependencies {
         exclude group: 'org.springframework.boot', module: 'spring-boot-web-server'
     }
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testRuntimeOnly 'com.h2database:h2'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
@@ -60,14 +63,30 @@ sourceSets.main.resources.srcDir(layout.buildDirectory.dir('generated-resources/
 tasks.named('processResources') { dependsOn tasks.named('syncFrontend') }
 tasks.named('test') { useJUnitPlatform(); maxHeapSize = '512m' }
 tasks.named('bootWar') { archiveFileName = 'user-info-ui.war' }
+
+tasks.register('dbZip', Zip) {
+    description = 'Shared UI_DATA_SCHEMA table DDL only; component seeds belong to component ZIPs.'
+    archiveFileName = 'user-info-ui-db.zip'
+    destinationDirectory = layout.buildDirectory.dir('libs')
+    from('db') { include '**/*.sql' }
+    includeEmptyDirs = false
+}
+tasks.named('assemble') { dependsOn tasks.named('dbZip') }
 tasks.named('war') { enabled = false }
 tasks.matching { it.name in ['jar', 'bootJar'] }.configureEach { enabled = false }
 
 tasks.register('verifyArtifacts') {
     group = 'verification'
-    dependsOn tasks.named('bootWar')
+    dependsOn tasks.named('bootWar'), tasks.named('dbZip')
     doLast {
         def contents = zipTree(tasks.named('bootWar').get().archiveFile.get().asFile)
+        if (contents.matching { include 'WEB-INF/lib/ui-platform-core-*.jar' }.isEmpty()
+                || contents.matching { include 'WEB-INF/lib/ojdbc17-*.jar' }.isEmpty()) {
+            throw new GradleException('WAR is missing UI platform or Oracle driver.')
+        }
+        if (fileTree('db/UI_DATA_SCHEMA') { include '*.sql' }.isEmpty()) {
+            throw new GradleException('Shared UI database DDL is missing.')
+        }
         if (contents.matching { include 'WEB-INF/classes/static/index.html' }.isEmpty()
                 || contents.matching { include 'WEB-INF/classes/static/**/*.js' }.isEmpty()
                 || contents.matching { include 'WEB-INF/classes/static/**/*.css' }.isEmpty()) {
@@ -83,7 +102,7 @@ tasks.register('verifyArtifacts') {
         }
     }
 }
-tasks.named('check') { dependsOn tasks.named('frontendTest'), tasks.named('verifyArtifacts') }
+tasks.named('check') { dependsOn tasks.named('frontendTest'), tasks.named('verifyArtifacts'), ':ui-platform-core:test' }
 tasks.withType(AbstractArchiveTask).configureEach {
     preserveFileTimestamps = false
     reproducibleFileOrder = true

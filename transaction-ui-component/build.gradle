@@ -1,0 +1,82 @@
+plugins {
+    id 'java'
+    id 'war'
+    id 'org.springframework.boot' version '4.1.1'
+    id 'io.spring.dependency-management' version '1.1.7'
+}
+group = 'com.oxygenraj'
+version = '0.0.1-SNAPSHOT'
+java { toolchain { languageVersion = JavaLanguageVersion.of(25) } }
+repositories { mavenCentral() }
+dependencyManagement { imports { mavenBom 'org.springframework.cloud:spring-cloud-dependencies:2025.1.3' } }
+dependencies {
+    implementation project(':ui-platform-core')
+    implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
+    implementation 'org.springframework.boot:spring-boot-web-server'
+    runtimeOnly 'com.oracle.database.jdbc:ojdbc17'
+    providedRuntime('org.springframework.boot:spring-boot-starter-tomcat-runtime') {
+        exclude group: 'org.springframework.boot', module: 'spring-boot-web-server'
+    }
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testRuntimeOnly 'com.h2database:h2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+tasks.named('test') { useJUnitPlatform(); maxHeapSize = '512m' }
+def nodeExecutable = providers.gradleProperty('nodeExecutable').orElse('node')
+tasks.register('frontendBuild', Exec) {
+    workingDir layout.projectDirectory.dir('frontend')
+    commandLine nodeExecutable.get(), 'scripts/build.mjs'
+    inputs.dir 'frontend/src'
+    inputs.file 'frontend/scripts/build.mjs'
+    outputs.dir 'frontend/dist'
+}
+tasks.register('frontendTest', Exec) {
+    workingDir layout.projectDirectory.dir('frontend')
+    commandLine nodeExecutable.get(), '--test'
+    inputs.dir 'frontend/src'
+    inputs.dir 'frontend/test'
+}
+tasks.register('syncFrontend', Sync) {
+    dependsOn tasks.named('frontendBuild')
+    from 'frontend/dist'
+    into layout.buildDirectory.dir('generated-resources/frontend/static')
+}
+sourceSets.main.resources.srcDir layout.buildDirectory.dir('generated-resources/frontend')
+tasks.named('processResources') { dependsOn tasks.named('syncFrontend') }
+tasks.named('bootWar') { archiveFileName = 'transaction-ui-component.war' }
+tasks.named('war') { enabled = false }
+tasks.matching { it.name in ['jar','bootJar'] }.configureEach { enabled = false }
+tasks.register('dbZip', Zip) {
+    archiveFileName = 'transaction-ui-component-db.zip'
+    destinationDirectory = layout.buildDirectory.dir('libs')
+    from('db') { include '**/*.sql' }
+    includeEmptyDirs = false
+}
+tasks.named('assemble') { dependsOn tasks.named('dbZip') }
+tasks.register('verifyArtifacts') {
+    dependsOn tasks.named('bootWar'), tasks.named('dbZip')
+    doLast {
+        def war = zipTree(tasks.named('bootWar').get().archiveFile.get().asFile)
+        ['WEB-INF/classes/static/js/components/transactions/loader.js','WEB-INF/classes/static/js/components/transactions/styles.css',
+         'WEB-INF/classes/static/js/components/transactions/manifest.json','WEB-INF/classes/static/js/components/resources/cs-mapping.json',
+         'WEB-INF/lib/ui-platform-core-*.jar','WEB-INF/lib/ojdbc17-*.jar',
+         'WEB-INF/lib/spring-boot-web-server-*.jar','WEB-INF/lib-provided/tomcat-embed-core-*.jar'].each { path ->
+            if (war.matching { include path }.isEmpty()) throw new GradleException("Missing WAR entry: ${path}")
+        }
+        if (!war.matching { include '**/*.sql','**/node_modules/**','WEB-INF/lib/tomcat-embed-*.jar' }.isEmpty()) {
+            throw new GradleException('Incorrect WAR dependency or SQL layout')
+        }
+        def sqls = fileTree('db') { include '**/*.sql' }
+        if (sqls.isEmpty()) throw new GradleException('Component seed SQL is missing')
+        sqls.each { f ->
+            if (f.text =~ /(?im)^\s*(CREATE\s+(USER|SCHEMA|TABLE)|GRANT\s|DROP\s|TRUNCATE\s)/) {
+                throw new GradleException('Component SQL contains seeds only; shared DDL belongs to user-info-ui')
+            }
+        }
+    }
+}
+tasks.named('check') { dependsOn tasks.named('frontendTest'), tasks.named('verifyArtifacts'), ':ui-platform-core:test' }
+tasks.withType(AbstractArchiveTask).configureEach { preserveFileTimestamps = false; reproducibleFileOrder = true }

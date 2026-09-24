@@ -1,4 +1,6 @@
 spring:
+  autoconfigure:
+    exclude: org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
   application:
     name: user-info-ui
   lifecycle:
@@ -58,3 +60,12 @@ management:
 logging:
   level:
     root: INFO
+
+ui:
+  component-client:
+    mode: ${UI_COMPONENT_CONNECTION_MODE:${TXN_UI_CONNECTION_MODE:direct}}
+    allowed-origins: ${UI_COMPONENT_ALLOWED_ORIGINS:http://127.0.0.1:8782,http://localhost:8782}
+  platform:
+    jdbc-url: ${UI_DATA_DB_URL:jdbc:oracle:thin:@//127.0.0.1:11521/FREEPDB1}
+    username: UI_DATA_SCHEMA
+    password: ${UI_DATA_DB_PASSWORD:}
