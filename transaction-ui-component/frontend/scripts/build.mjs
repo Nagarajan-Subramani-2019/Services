@@ -10,6 +10,9 @@ const files = [
   'js/components/transactions/loader.js',
   'js/components/transactions/styles.css',
   'js/components/transactions/manifest.json',
+  'js/components/transactions-ai/loader.js',
+  'js/components/transactions-ai/styles.css',
+  'js/components/transactions-ai/manifest.json',
   'js/components/resources/cs-mapping.json'
 ];
 for (const name of files) {

@@ -6,6 +6,13 @@ Default service: transaction-ui-component; port8782; context /transaction-ui-com
 
 The first component, transactions, renders inside user-info-ui. It obtains user ID/username options from userInfoServices, then displays the selected user's transactions from userTransactServices when Okay is pressed.
 
+The second component, transactions-ai, replaces Item1 with **Transactions with AI**.
+It automatically loads the signed-in user's transactions on the left, with a
+text box and an Okay button in a separate right-hand panel. The AI button still
+has only a local placeholder response: no AI/model call, saved prompt, generated
+link, chart or new table. See [TRANSACTIONS_AI.md](TRANSACTIONS_AI.md) for menu/API
+registration SQL and deployment. Existing Transaction behavior is unchanged.
+
 ```text
 Browser -> user-info-ui:8780
               |-- UI_DATA_SCHEMA: sessions, menus, component/API mappings

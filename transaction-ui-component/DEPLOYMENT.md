@@ -2,13 +2,10 @@
 
 ## Projects and artifacts
 
-Delivery note (2026-09-23): the existing base UI WAR was locked by a running
-process, so it was not overwritten or stopped. Its verified replacement and
-DB ZIP are in `user-info-ui/build/component-release-20260923/`. For this
-delivery, use that WAR path instead of the base UI `build/libs` path shown
-below. The component WAR/ZIP are in `transaction-ui-component/build/libs/`.
-Stop the old base UI yourself before starting its replacement on port 8780.
-Future builds still generate artifacts under each project's `build/libs`.
+Transactions with AI update (2026-09-24): only the component WAR and its
+registration SQL change. The existing table-driven base UI supports this
+screen without a rebuild or restart. See TRANSACTIONS_AI.md for the upgrade.
+Normal builds generate artifacts under each project's `build/libs`.
 
 Keep user-info-ui, transaction-ui-component and ui-platform-core beside one another in Services. The common library is embedded into both WARs and is not separately deployed.
 
@@ -31,9 +28,13 @@ Run, in order (use full paths from your extraction directories):
 @UI_DATA_SCHEMA/000_install_ui_platform.sql
 -- From the COMPONENT DB ZIP:
 @UI_DATA_SCHEMA/001_register_transaction_component.sql
+-- From the COMPONENT DB ZIP, after 001 (or by itself when upgrading):
+@UI_DATA_SCHEMA/002_register_transactions_ai.sql
+-- Signed-in-user automatic data loading, after 002:
+@UI_DATA_SCHEMA/003_register_transactions_ai_self_data.sql
 ```
 
-The base DDL validates existing tables rather than replacing them. Oracle DDL commits implicitly; investigate validation failures rather than dropping data. Component seeds use insert-only MERGEs, preserving later addresses, disabling decisions and grants. Neither Gradle nor startup runs these scripts.
+The base DDL validates existing tables rather than replacing them. Oracle DDL commits implicitly; investigate validation failures rather than dropping data. Script 001 uses insert-only MERGEs. Script 002 converts and enables the original Item1 once; reruns preserve later disabling decisions. Existing addresses and grants are retained. Neither Gradle nor startup runs these scripts.
 
 No existing users/transactions are inserted or changed. There is no CREATE USER, CREATE SCHEMA or privilege GRANT in the ZIPs.
 
@@ -51,11 +52,20 @@ No existing users/transactions are inserted or changed. There is no CREATE USER,
 
 Business users stay in USER_INFO_SCHEMA; transactions stay in USER_TRANSACT_SCHEMA. They are read through APIs, not cross-schema SQL. Existing shared port properties remain in EUREKA_DB; UI registration/entitlements live in UI_DATA_SCHEMA.
 
-Initial menu: Transaction and disabled Item1–Item4.
-UI code: UI_TRANSACTIONS.
-Functional codes: TXN_USERS_READ and TXN_LIST_READ.
+After 001: Transaction and disabled Item1–Item4.
+After 002: Transaction, Transactions with AI, and disabled Item2–Item4.
+After 003: Transactions with AI automatically loads the signed-in user's data
+on the left, alongside its right-hand text-box/Okay panel. The AI button is still
+a local-only placeholder; see TRANSACTIONS_AI.md.
+UI codes: UI_TRANSACTIONS (Transaction) and UI_ITEM1 (Transactions with AI).
+Functional codes: TXN_USERS_READ, TXN_LIST_READ and TXN_AI_SELF_READ.
 
-All signed-in users initially have these grants and may select any user. USER decisions override ALL; missing grants and disabled servers/components/activities deny access. Selecting a user ID never changes the authenticated caller's identity.
+All signed-in users initially have these grants. The original Transaction screen
+still permits selecting any user under its existing grants. Transactions with AI
+uses self-only endpoints: a requested userId must equal the authenticated session
+user. USER decisions override ALL; missing grants and disabled servers/components/
+activities deny access. Script 003 is insert-only and preserves existing disables
+and denies; no new table or data source is created.
 
 ## Startup
 

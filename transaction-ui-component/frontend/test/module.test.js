@@ -156,5 +156,8 @@ test('component metadata matches the host registry and approved activities', asy
 
 test('component-server mapping agrees with its published metadata', async () => {
   const mapping = JSON.parse(await readFile(new URL('../src/js/components/resources/cs-mapping.json', import.meta.url), 'utf8'));
-  assert.deepEqual(mapping, { transactions: 'transaction-ui-component' });
+  assert.deepEqual(mapping, {
+    transactions: 'transaction-ui-component',
+    'transactions-ai': 'transaction-ui-component'
+  });
 });

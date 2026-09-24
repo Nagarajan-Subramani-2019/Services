@@ -1,3 +1,4 @@
 {
-  "transactions": "transaction-ui-component"
+  "transactions": "transaction-ui-component",
+  "transactions-ai": "transaction-ui-component"
 }

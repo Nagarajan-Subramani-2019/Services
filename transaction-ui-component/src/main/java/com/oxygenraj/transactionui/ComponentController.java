@@ -5,6 +5,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -46,7 +47,23 @@ public class ComponentController {
             @RequestParam(defaultValue="20") @Min(1) @Max(100) int size) {
         authorize(header,"TXN_LIST_READ"); return backend.transactions(userId,page,size);
     }
-    private void authorize(String header,String code) {
+    @GetMapping("/api/current-user")
+    ComponentBackend.Page<ComponentBackend.User> currentUser(@RequestHeader(value="Authorization",required=false) String header,
+            @RequestParam(defaultValue="0") @Min(0) @Max(1000000) int page,
+            @RequestParam(defaultValue="1") @Min(1) @Max(100) int size) {
+        var user=authorize(header,"TXN_AI_SELF_READ");
+        return new ComponentBackend.Page<>(page==0?List.of(user):List.of(),page,size,1,1);
+    }
+    @GetMapping("/api/my-transactions")
+    ComponentBackend.Page<ComponentBackend.Transaction> myTransactions(@RequestHeader(value="Authorization",required=false) String header,
+            @RequestParam @Positive long userId,
+            @RequestParam(defaultValue="0") @Min(0) @Max(1000000) int page,
+            @RequestParam(defaultValue="20") @Min(1) @Max(100) int size) {
+        var user=authorize(header,"TXN_AI_SELF_READ");
+        if(userId!=user.id()) throw new ApiFailure(403,"FORBIDDEN","Only your own transactions are available.");
+        return backend.transactions(user.id(),page,size);
+    }
+    private ComponentBackend.User authorize(String header,String code) {
         var principal=platform.authenticate(header);
         ComponentBackend.User user;
         try { user=backend.activeUser(principal.userId()); }
@@ -62,5 +79,6 @@ public class ComponentController {
         }
         // API permission is independent of the UI permission: hiding a menu is not API authorization.
         platform.requireFunctional(principal,code);
+        return user;
     }
 }

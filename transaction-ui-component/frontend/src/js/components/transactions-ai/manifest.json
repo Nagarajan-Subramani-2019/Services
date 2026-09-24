@@ -1,0 +1,15 @@
+{
+  "name": "transaction-ui-component",
+  "version": "1.0.0",
+  "componentCode": "transactions-ai",
+  "componentServerName": "transaction-ui-component",
+  "resourceBasePath": "/js/components/transactions-ai",
+  "host": "user-info-ui",
+  "viewKey": "transactions-ai",
+  "uiActivityCode": "UI_ITEM1",
+  "functionalActivityCodes": ["TXN_AI_SELF_READ"],
+  "entry": "loader.js",
+  "stylesheet": "styles.css",
+  "description": "Signed-in user's transactions with a local AI text placeholder",
+  "mountContract": "mount(container, { request, onUnauthorized }) returns cleanup"
+}

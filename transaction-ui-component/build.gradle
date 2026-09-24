@@ -62,6 +62,9 @@ tasks.register('verifyArtifacts') {
         def war = zipTree(tasks.named('bootWar').get().archiveFile.get().asFile)
         ['WEB-INF/classes/static/js/components/transactions/loader.js','WEB-INF/classes/static/js/components/transactions/styles.css',
          'WEB-INF/classes/static/js/components/transactions/manifest.json','WEB-INF/classes/static/js/components/resources/cs-mapping.json',
+         'WEB-INF/classes/static/js/components/transactions-ai/loader.js',
+         'WEB-INF/classes/static/js/components/transactions-ai/styles.css',
+         'WEB-INF/classes/static/js/components/transactions-ai/manifest.json',
          'WEB-INF/lib/ui-platform-core-*.jar','WEB-INF/lib/ojdbc17-*.jar',
          'WEB-INF/lib/spring-boot-web-server-*.jar','WEB-INF/lib-provided/tomcat-embed-core-*.jar'].each { path ->
             if (war.matching { include path }.isEmpty()) throw new GradleException("Missing WAR entry: ${path}")
@@ -71,6 +74,12 @@ tasks.register('verifyArtifacts') {
         }
         def sqls = fileTree('db') { include '**/*.sql' }
         if (sqls.isEmpty()) throw new GradleException('Component seed SQL is missing')
+        def dbArchive = zipTree(tasks.named('dbZip').get().archiveFile.get().asFile)
+        ['UI_DATA_SCHEMA/001_register_transaction_component.sql',
+         'UI_DATA_SCHEMA/002_register_transactions_ai.sql',
+         'UI_DATA_SCHEMA/003_register_transactions_ai_self_data.sql'].each { path ->
+            if (dbArchive.matching { include path }.isEmpty()) throw new GradleException("Missing SQL ZIP entry: ${path}")
+        }
         sqls.each { f ->
             if (f.text =~ /(?im)^\s*(CREATE\s+(USER|SCHEMA|TABLE)|GRANT\s|DROP\s|TRUNCATE\s)/) {
                 throw new GradleException('Component SQL contains seeds only; shared DDL belongs to user-info-ui')
