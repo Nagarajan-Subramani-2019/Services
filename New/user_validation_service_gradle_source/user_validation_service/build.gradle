@@ -1,0 +1,126 @@
+import java.util.zip.ZipFile
+
+plugins {
+    id 'java'
+    id 'war'
+}
+
+group = 'com.ofss.tools'
+version = '1.0.0'
+
+repositories {
+    mavenCentral()
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+dependencies {
+    implementation platform('org.springframework.boot:spring-boot-dependencies:4.1.1')
+    implementation('org.springframework.boot:spring-boot-starter-webmvc') {
+        exclude group: 'org.springframework.boot', module: 'spring-boot-starter-tomcat'
+    }
+    implementation('org.springframework.boot:spring-boot-starter-jdbc') {
+        exclude group: 'com.zaxxer', module: 'HikariCP'
+    }
+    implementation('org.springframework.boot:spring-boot-starter-validation') {
+        exclude group: 'org.apache.tomcat.embed', module: 'tomcat-embed-el'
+    }
+    compileOnly 'jakarta.servlet:jakarta.servlet-api:6.1.0'
+    compileOnly 'jakarta.el:jakarta.el-api:6.0.1'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release.set(17)
+    options.encoding = 'UTF-8'
+    options.compilerArgs.add('-parameters')
+}
+
+tasks.withType(AbstractArchiveTask).configureEach {
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+}
+
+tasks.named('jar') {
+    enabled = false
+}
+
+tasks.named('war', War) {
+    archiveFileName = 'user_validation_service.war'
+    destinationDirectory = layout.buildDirectory.dir('libs')
+}
+
+def sqlScripts = ['install.sql', '01_tables.sql', '02_indexes.sql']
+def sqlArchive = tasks.register('sqlZip', Zip) {
+    group = 'build'
+    description = 'Packages table and index SQL separately from the WAR.'
+    archiveFileName = 'user_validation_service_sql.zip'
+    destinationDirectory = layout.buildDirectory.dir('libs')
+    from('sql') {
+        include sqlScripts
+    }
+    doFirst {
+        sqlScripts.each { script ->
+            if (!file("sql/$script").isFile()) {
+                throw new GradleException("Missing SQL source: sql/$script")
+            }
+        }
+    }
+}
+
+tasks.named('assemble') {
+    dependsOn sqlArchive
+}
+
+def warArchive = tasks.named('war', War)
+def verifyArchives = tasks.register('verifyArtifacts') {
+    group = 'verification'
+    description = 'Checks the WAR and SQL ZIP packaging without running or deploying the service.'
+    dependsOn warArchive, sqlArchive
+    inputs.file(warArchive.flatMap { it.archiveFile })
+    inputs.file(sqlArchive.flatMap { it.archiveFile })
+    doLast {
+        def warFile = new ZipFile(warArchive.get().archiveFile.get().asFile)
+        try {
+            def entries = warFile.entries().toList()*.name
+            def forbidden = entries.findAll { entry ->
+                entry.startsWith('BOOT-INF/') || entry.startsWith('WEB-INF/lib-provided/') ||
+                        entry.endsWith('.sql') ||
+                        (entry ==~ /WEB-INF\/lib\/.*(tomcat|jetty|undertow|netty|kafka|junit|mockito|testcontainers|spring-test|assertj|hamcrest|testng).*\.jar/)
+            }
+            if (forbidden) {
+                throw new GradleException("Disallowed WAR contents: $forbidden")
+            }
+            ['WEB-INF/web.xml', 'META-INF/context.xml', 'WEB-INF/classes/application.properties',
+             'WEB-INF/classes/com/ofss/tools/uservalidation/UserValidationApplication.class'].each { entry ->
+                if (!entries.contains(entry)) {
+                    throw new GradleException("Missing WAR entry: $entry")
+                }
+            }
+        } finally {
+            warFile.close()
+        }
+        def sqlFile = new ZipFile(sqlArchive.get().archiveFile.get().asFile)
+        try {
+            def entries = sqlFile.entries().toList()
+            if (entries*.name.sort() != sqlScripts.toSorted()) {
+                throw new GradleException('SQL ZIP must contain only the three SQL scripts.')
+            }
+            entries.each { entry ->
+                def text = sqlFile.getInputStream(entry).withCloseable { it.getText('UTF-8') }
+                if (text =~ /(?im)^\s*(CREATE\s+(USER|SCHEMA)\b|ALTER\s+USER\b|GRANT\s|DROP\s|TRUNCATE\s|DELETE\s)/) {
+                    throw new GradleException("Disallowed provisioning or destructive SQL: ${entry.name}")
+                }
+            }
+        } finally {
+            sqlFile.close()
+        }
+        logger.lifecycle('Verified: standalone WAR and separate table/index SQL ZIP.')
+    }
+}
+
+tasks.named('check') {
+    dependsOn verifyArchives
+}
